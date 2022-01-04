@@ -2,17 +2,17 @@ package db
 
 import (
 	"encoding/json"
-	"filestore/src/meta"
 	"filestore/src/models"
 	"filestore/src/payload"
+	"filestore/src/service/cache_service"
 	"filestore/src/service/file_service"
 	"filestore/src/service/token_service"
+	"filestore/src/service/user_service"
 	"filestore/src/util"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"os"
 	"strconv"
 )
 
@@ -20,24 +20,9 @@ var (
 	ChunkPath = "/tmp/fileStore/chunk"
 )
 
-func DeleteFileMeta(c *gin.Context) {
-	fileMd5 := c.Query("fileMd5")
-	fMeta := meta.GetFileMeta(fileMd5)
-	meta.DeleteFileMeta(fileMd5)
-
-	log.Infof("要删除的文件是：%s", fMeta.Localtion)
-	err := os.Remove(fMeta.Localtion)
-	if err != nil {
-		c.JSON(200, payload.FailPayload("删除失败:"+err.Error()))
-		return
-	}
-	c.JSON(200, payload.SucPayload("删除成功"))
-
-}
-
 func Upload(c *gin.Context) {
 	// 检查token
-	err := token_service.CheckToken(c)
+	myClaims, err := token_service.CheckToken(c)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("token无效"))
 	}
@@ -77,11 +62,15 @@ func Upload(c *gin.Context) {
 		c.JSON(200, payload.ExistsUpload())
 		return
 	}
-
 	filesize, _ := strconv.Atoi(totalSize)
 
+	userInfo, err := cache_service.GetUserCache(myClaims.Phone)
+	if err != nil {
+		log.Errorf("获取用户缓存错误：%v", err)
+		return
+	}
 	userFile = &models.UserFile{
-		UserId:   models.LoginUser.ID,
+		UserId:   userInfo.ID,
 		FileMd5:  Md5,
 		FileSize: uint64(filesize),
 		FileName: fileName,
@@ -104,7 +93,7 @@ func Upload(c *gin.Context) {
 
 func PostUpload(c *gin.Context) {
 	// 检查token
-	err := token_service.CheckToken(c)
+	myClaims, err := token_service.CheckToken(c)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("token无效"))
 	}
@@ -160,8 +149,8 @@ func PostUpload(c *gin.Context) {
 
 	// 如果是最后一个,merge所有文件
 	if chunkNum == totalchunks {
-		fmt.Println("当前登陆用户是", models.LoginUser)
-		targetPath := "/tmp/fileStore/" + models.LoginUser.Phone + "/" + fileName
+		fmt.Println("当前登陆用户是", myClaims.Phone)
+		targetPath := "/tmp/fileStore/" + myClaims.Phone + "/" + fileName
 		fmt.Printf("当前的目标路径为：%s\n", targetPath)
 		err = util.MainMergeFile(totalchunks, ChunkPath+"/"+fileName, targetPath)
 		if err != nil {
@@ -196,8 +185,13 @@ func PostUpload(c *gin.Context) {
 			PointCount: 1,
 		}
 
+		var userInfo *models.User
+
+		userInfo, err = user_service.GetUser(myClaims.Phone)
+		c.JSON(200, payload.FailPayload("获取用户信息失败"))
+
 		userFile := &models.UserFile{
-			UserId:     models.LoginUser.ID,
+			UserId:     userInfo.ID,
 			FileMd5:    Md5,
 			FileSize:   uint64(totalsize),
 			FileName:   fileName,
@@ -297,33 +291,14 @@ func DownLoadFile(c *gin.Context) {
 	c.File(file.FileAddr)
 }
 
-func UpdateFileMeta(c *gin.Context) {
-	op := c.Query("ops")
-	newName := c.Query("fileName")
-	fileMd5 := c.Query("fileMd5")
-
-	if op != "0" {
-		c.JSON(200, payload.FailPayload("op错误"))
-		return
-	}
-
-	file := meta.GetFileMeta(fileMd5)
-	file.FileName = newName
-	meta.UpdateFileMeta(file)
-
-	data, err := json.Marshal(file)
-	if err != nil {
-		c.JSON(200, payload.FailPayload("序列化失败"))
-		return
-	}
-
-	c.String(200, string(data))
-
-}
-
 func Mkdir(c *gin.Context) {
+	myClaims, err := token_service.CheckToken(c)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("token无效"))
+		return
+	}
 	folder := new(models.Folder)
-	err := c.ShouldBindJSON(folder)
+	err = c.ShouldBindJSON(folder)
 	if err != nil {
 		log.Errorf("绑定folder参数错误：%v", err)
 		c.JSON(200, payload.FailPayload("绑定folder参数错误"))
@@ -344,9 +319,15 @@ func Mkdir(c *gin.Context) {
 
 	//foldName, filePath := c.PostForm("foldName"), c.PostForm("filePath")
 	//log.Infof("foldName is :%v and path is :%v", foldName, filePath)
+	var userInfo *models.User
+
+	userInfo, err = user_service.GetUser(myClaims.Phone)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("查询用户失败"))
+	}
 
 	file := &models.UserFile{
-		UserId:   models.LoginUser.ID,
+		UserId:   userInfo.ID,
 		FileName: folder.FoldName,
 		FilePath: folder.FilePath,
 		IsDir:    1,

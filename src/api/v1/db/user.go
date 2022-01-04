@@ -3,6 +3,7 @@ package db
 import (
 	"filestore/src/models"
 	"filestore/src/payload"
+	"filestore/src/service/cache_service"
 	"filestore/src/service/file_service"
 	"filestore/src/service/token_service"
 	"filestore/src/service/user_service"
@@ -89,28 +90,43 @@ func CheckUserLoginInfo(c *gin.Context) {
 
 	// 判断token是否有效
 	myClaims, err := token_service.ParseToken(token)
+	//_, err := token_service.ParseToken(token)
 	if err != nil {
 		log.Errorf("token 无效：%v", err)
 		c.JSON(200, payload.FailPayload("token无效"))
 		return
 	}
 
-	// 获取用户信息
-
-	models.LoginUser, err = user_service.GetUserByPhone(myClaims.Phone)
-	//user, err := user_service.GetUserInfoByToken(token)
+	// 判断缓存是否存在
+	_, err = cache_service.GetUserCache(myClaims.Phone)
 	if err != nil {
-		log.Errorf("获取用户信息失败%v", err)
-		c.JSON(200, payload.FailPayload("获取用户信息失败"))
-		return
+		// 设置缓存
+		userInfo, err := user_service.GetUserByPhone(myClaims.Phone)
+		11
+		if err != nil {
+			return
+		}
+		err = cache_service.AddUserCache(userInfo)
+		if err != nil {
+			log.Errorf("设置用户%s缓存错误:%v", userInfo.UserName, err)
+			return
+		}
 	}
+
+	//// 获取用户信息
+	//	models.LoginUser, err = user_service.GetUserByPhone(myClaims.Phone)
+	////user, err := user_service.GetUserInfoByToken(token)
+	//if err != nil {
+	//	c.JSON(200, payload.FailPayload("获取用户信息失败"))
+	//	return
+	//}
 
 	data := ResUserInfo{
 		Code:    0,
 		Success: true,
 		Message: "检查成功",
 		Data: &UserInfo{
-			User:  models.LoginUser,
+			//User:  models.LoginUser,
 			Token: token,
 		},
 	}
@@ -177,7 +193,7 @@ func Login(c *gin.Context) {
 	password := c.Query("password")
 
 	// 查询是否有该用户
-	_, err := user_service.GetUserByPhone(phone)
+	userInfo, err := user_service.GetUserByPhone(phone)
 	if err != nil {
 		if err.Error() == "record not found" {
 			c.JSON(200, payload.FailPayload("该用户不存在"))
@@ -218,6 +234,9 @@ func Login(c *gin.Context) {
 	}
 
 	c.JSON(200, data)
+	// 缓存用户信息
+	defer cache_service.AddUserCache(userInfo)
+
 	//data := []byte(`{
 	//	"code": 0,
 	//	"data": {
@@ -267,12 +286,15 @@ func GetUserInfo(c *gin.Context) {
 //}
 
 func GetFileList(c *gin.Context) {
+	myClaims, err := token_service.CheckToken(c)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("token无效"))
+	}
 	filePath, page, pageCount, fileType := c.DefaultQuery("filePath", "/"), c.DefaultQuery("currentPage", "1"), //fileType: 0为全部文件，1、2、3、4、5分别对应图片，视频，文档，音乐，其他
 		c.DefaultQuery("pageCount", "50"), c.DefaultQuery("fileType", "0")
 	Page, _ := strconv.Atoi(page)
 	PageCount, _ := strconv.Atoi(pageCount)
-	listData, err := file_service.GetFileList(fileType, filePath, Page, PageCount)
-	log.Infof("path is %s, page is %d, pageCount is %d,Data is %v\n", filePath, Page, PageCount, listData)
+	listData, err := file_service.GetFileList(myClaims.Phone, fileType, filePath, Page, PageCount)
 	if err != nil {
 		log.Errorf("获取文件列表出错:%v", err)
 		c.JSON(200, payload.FailPayload("获取文件列表出错"))

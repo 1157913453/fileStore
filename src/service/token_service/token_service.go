@@ -61,9 +61,9 @@ func UpdateToken(phone, token string) error {
 	return models.UpdateToken(phone, token)
 }
 
-func CheckToken(c *gin.Context) (err error) {
+func CheckToken(c *gin.Context) (myClaims *MyClaims, err error) {
 	token := c.GetHeader("token")
-	_, err = ParseToken(token)
+	myClaims, err = ParseToken(token)
 	if err != nil {
 		log.Errorf("token无效:%v", err)
 	}

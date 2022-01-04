@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-var LoginUser *User
-
 type User struct {
 	UserName      string     `gorm:"type:varchar(64);not null;default:'';" json:"userName"`
 	Password      string     `gorm:"type:varchar(256);not null;" json:"password"`

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"filestore/src/service/user_service"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	p "path"
@@ -46,19 +47,24 @@ type ListData struct {
 
 var FileTypeMap = map[string]string{"1": "图片", "2": "文档", "3": "视频", "4": "音乐", "5": "其他"}
 
-func GetFileList(fileType, path string, offset, limit int) (FileList, error) {
+func GetFileList(phone, fileType, path string, offset, limit int) (FileList, error) {
 	userFileList := []*UserFile{}
 	var count int64
 	var err error
+	var userInfo *User
+	userInfo, err = user_service.GetUser(phone)
+	if err != nil {
+		return FileList{}, err
+	}
 	if fileType == "0" { // 全部文件
-		_ = OrmDb.Model(&UserFile{}).Where("user_id = ? AND file_path = ? AND delete_flag = 0", LoginUser.ID, path).Count(&count)
-		err = OrmDb.Limit(limit).Offset(offset).Find(&userFileList, "file_path = ? AND user_id = ? AND delete_flag = 0", path, LoginUser.ID).Error
+		_ = OrmDb.Model(&UserFile{}).Where("user_id = ? AND file_path = ? AND delete_flag = 0", userInfo.ID, path).Count(&count)
+		err = OrmDb.Limit(limit).Offset(offset).Find(&userFileList, "file_path = ? AND user_id = ? AND delete_flag = 0", path, userInfo.ID).Error
 		if err != nil {
 			return FileList{}, err
 		}
 	} else { // 根据类型查询文件
-		_ = OrmDb.Model(&UserFile{}).Where("user_id = ? AND file_type = ? AND delete_flag = 0", LoginUser.ID, FileTypeMap[fileType]).Count(&count)
-		err = OrmDb.Limit(limit).Offset(offset).Find(&userFileList, "file_type = ? AND user_id = ? AND delete_flag = 0", FileTypeMap[fileType], LoginUser.ID).Error
+		_ = OrmDb.Model(&UserFile{}).Where("user_id = ? AND file_type = ? AND delete_flag = 0", userInfo.ID, FileTypeMap[fileType]).Count(&count)
+		err = OrmDb.Limit(limit).Offset(offset).Find(&userFileList, "file_type = ? AND user_id = ? AND delete_flag = 0", FileTypeMap[fileType], userInfo.ID).Error
 		if err != nil {
 			return FileList{}, err
 		}

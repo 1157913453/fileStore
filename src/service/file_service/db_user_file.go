@@ -2,8 +2,8 @@ package file_service
 
 import "filestore/src/models"
 
-func GetFileList(fileType, path string, page, pageCount int) (models.FileList, error) {
-	return models.GetFileList(fileType, path, (page-1)*pageCount, pageCount)
+func GetFileList(phone, fileType, path string, page, pageCount int) (models.FileList, error) {
+	return models.GetFileList(phone, fileType, path, (page-1)*pageCount, pageCount)
 }
 
 func CreateUserFile(file *models.UserFile) error {
