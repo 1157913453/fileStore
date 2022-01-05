@@ -66,7 +66,6 @@ func GetFileList(fileType, path string, offset, limit int, userInfo *User) (File
 	}
 
 	if count != 0 {
-		log.Infof("当前的count为%d", count)
 		listData := []*ListData{}
 		l := int(count)
 
@@ -159,7 +158,6 @@ func GetRecoveryFileList(userId uint) (list []*ListData, err error) {
 
 	count := len(userFileList)
 	if count != 0 {
-		log.Infof("当前的count为%d", count)
 		listData := []*ListData{}
 		l := int(count)
 		for i := 0; i < l; i++ {

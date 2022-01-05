@@ -3,4 +3,4 @@
 
 前端项目地址为[天涯网盘前端项目](https://github.com/1157913453/TY-fileStore-web)
 
-演示地址：[天涯网盘](zrgo.top/file)
+演示地址：[天涯网盘](http://zrgo.top/file)
