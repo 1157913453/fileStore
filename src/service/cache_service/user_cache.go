@@ -26,7 +26,7 @@ func AddUserCache(userInfo *models.User) (err error) {
 func GetUserCache(phone string) (userInfo *models.User, err error) {
 	res, err := Rdb.Get(Ctx, "user_phone:"+phone).Result()
 	if err != nil {
-		log.Errorf("查找错误：%v", err)
+		log.Errorf("获取%s缓存错误：%v", phone, err)
 		return nil, err
 	}
 	userB := []byte(res)

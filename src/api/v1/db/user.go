@@ -102,24 +102,16 @@ func CheckUserLoginInfo(c *gin.Context) {
 	if err != nil {
 		// 设置缓存
 		userInfo, err := user_service.GetUserByPhone(myClaims.Phone)
-		11
 		if err != nil {
+			c.JSON(200, payload.FailPayload("查询用户信息失败"))
 			return
 		}
 		err = cache_service.AddUserCache(userInfo)
 		if err != nil {
-			log.Errorf("设置用户%s缓存错误:%v", userInfo.UserName, err)
+			c.JSON(200, payload.FailPayload("设置用户缓存失败"))
 			return
 		}
 	}
-
-	//// 获取用户信息
-	//	models.LoginUser, err = user_service.GetUserByPhone(myClaims.Phone)
-	////user, err := user_service.GetUserInfoByToken(token)
-	//if err != nil {
-	//	c.JSON(200, payload.FailPayload("获取用户信息失败"))
-	//	return
-	//}
 
 	data := ResUserInfo{
 		Code:    0,
@@ -133,59 +125,6 @@ func CheckUserLoginInfo(c *gin.Context) {
 
 	c.JSON(200, data)
 
-	//	data := []byte(`{
-	//	"code": 0,
-	//	"data": {
-	//		"available": 0,
-	//		"birthday": "",
-	//		"email": "",
-	//		"industry": "",
-	//		"intro": "",
-	//		"lastLoginTime": "",
-	//		"modifyTime": "",
-	//		"modifyUserId": 0,
-	//		"openId": "",
-	//		"password": "",
-	//		"position": "",
-	//		"registerTime": "",
-	//		"roles": [
-	//			{
-	//				"available": 0,
-	//				"createTime": "",
-	//				"createUserId": 0,
-	//				"description": "",
-	//				"modifyTime": "",
-	//				"modifyUserId": 0,
-	//				"permissions": [
-	//					{
-	//						"createTime": "",
-	//						"createUserId": 0,
-	//						"modifyTime": "",
-	//						"modifyUserId": 0,
-	//						"orderNum": 0,
-	//						"parentId": 0,
-	//						"permissionCode": "",
-	//						"permissionId": 0,
-	//						"permissionName": "",
-	//						"resourceType": 0
-	//					}
-	//				],
-	//				"roleId": 0,
-	//				"roleName": ""
-	//			}
-	//		],
-	//		"salt": "",
-	//		"phone": "",
-	//		"token": "",
-	//		"userId": 0,
-	//		"username": "",
-	//		"verificationCode": ""
-	//	},
-	//	"message": "成功"
-	//}`)
-	//
-	//	js, _ := simplejson.NewJson(data)
-	//	c.JSON(200, js)
 }
 
 func Login(c *gin.Context) {

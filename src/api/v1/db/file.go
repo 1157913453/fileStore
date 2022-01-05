@@ -56,19 +56,21 @@ func Upload(c *gin.Context) {
 	}
 	log.Infof("数据库中已有该文件，开始极速上传")
 
+	// 获取用户信息
+	userInfo, err := cache_service.GetUserCache(myClaims.Phone)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("获取缓存错误"))
+		return
+	}
+
 	// 判断已有文件是否在当前path
-	userFile, err := file_service.GetUserFile(Md5)
+	userFile, err := file_service.GetUserFile(userInfo.ID, Md5)
 	if err == nil && userFile != nil && userFile.FilePath == filePath {
 		c.JSON(200, payload.ExistsUpload())
 		return
 	}
 	filesize, _ := strconv.Atoi(totalSize)
 
-	userInfo, err := cache_service.GetUserCache(myClaims.Phone)
-	if err != nil {
-		log.Errorf("获取用户缓存错误：%v", err)
-		return
-	}
 	userFile = &models.UserFile{
 		UserId:   userInfo.ID,
 		FileMd5:  Md5,
@@ -188,6 +190,10 @@ func PostUpload(c *gin.Context) {
 		var userInfo *models.User
 
 		userInfo, err = user_service.GetUser(myClaims.Phone)
+		if err != nil {
+			c.JSON(200, payload.FailPayload("获取用户信息失败"))
+			return
+		}
 		c.JSON(200, payload.FailPayload("获取用户信息失败"))
 
 		userFile := &models.UserFile{
@@ -305,8 +311,17 @@ func Mkdir(c *gin.Context) {
 		return
 	}
 
+	// 获取用户信息
+	var userInfo *models.User
+
+	userInfo, err = user_service.GetUser(myClaims.Phone)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("查询用户失败"))
+		return
+	}
+
 	// 判断当前路径是否有同名文件夹
-	err = file_service.GetFolder(folder.FilePath, folder.FoldName)
+	err = file_service.GetFolder(userInfo.ID, folder.FilePath, folder.FoldName)
 	if err == nil {
 		log.Errorf("有同名文件夹：%v", err)
 		c.JSON(200, payload.FailPayload("有同名文件夹"))
@@ -319,12 +334,6 @@ func Mkdir(c *gin.Context) {
 
 	//foldName, filePath := c.PostForm("foldName"), c.PostForm("filePath")
 	//log.Infof("foldName is :%v and path is :%v", foldName, filePath)
-	var userInfo *models.User
-
-	userInfo, err = user_service.GetUser(myClaims.Phone)
-	if err != nil {
-		c.JSON(200, payload.FailPayload("查询用户失败"))
-	}
 
 	file := &models.UserFile{
 		UserId:   userInfo.ID,
@@ -361,7 +370,19 @@ func BatchDeleteFile(c *gin.Context) {
 }
 
 func GetRecoveryFileList(c *gin.Context) {
-	list, err := file_service.GetRecoveryFileList()
+	myClaims, err := token_service.CheckToken(c)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("token无效"))
+		return
+	}
+
+	userInfo, err := user_service.GetUser(myClaims.Phone)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("获取用户信息失败"))
+		return
+	}
+
+	list, err := file_service.GetRecoveryFileList(userInfo.ID)
 	if err != nil {
 		log.Errorf("查询回收站数据失败：%v", err)
 		c.JSON(200, payload.FailPayload("查询回收站数据失败"))

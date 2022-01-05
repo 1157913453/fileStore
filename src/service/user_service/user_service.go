@@ -32,8 +32,12 @@ func CheckPassword(phone, encPassword string) error {
 // 通过reds或数据库查询用户
 func GetUser(phone string) (userInfo *models.User, err error) {
 	userInfo, err = cache_service.GetUserCache(phone)
-	if err != nil {
+	if err != nil { // 缓存没找到就到数据库找并更新缓存
 		userInfo, err = GetUserByPhone(phone)
+		if err != nil {
+			return nil, err
+		}
+		err = cache_service.AddUserCache(userInfo)
 		if err != nil {
 			return nil, err
 		}

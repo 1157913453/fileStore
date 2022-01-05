@@ -1,7 +1,6 @@
 package models
 
 import (
-	"filestore/src/service/user_service"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	p "path"
@@ -47,15 +46,11 @@ type ListData struct {
 
 var FileTypeMap = map[string]string{"1": "图片", "2": "文档", "3": "视频", "4": "音乐", "5": "其他"}
 
-func GetFileList(phone, fileType, path string, offset, limit int) (FileList, error) {
+func GetFileList(fileType, path string, offset, limit int, userInfo *User) (FileList, error) {
 	userFileList := []*UserFile{}
 	var count int64
 	var err error
-	var userInfo *User
-	userInfo, err = user_service.GetUser(phone)
-	if err != nil {
-		return FileList{}, err
-	}
+
 	if fileType == "0" { // 全部文件
 		_ = OrmDb.Model(&UserFile{}).Where("user_id = ? AND file_path = ? AND delete_flag = 0", userInfo.ID, path).Count(&count)
 		err = OrmDb.Limit(limit).Offset(offset).Find(&userFileList, "file_path = ? AND user_id = ? AND delete_flag = 0", path, userInfo.ID).Error
@@ -127,14 +122,14 @@ func CreateUserFile(file *UserFile) (err error) {
 	return
 }
 
-func GetUserFile(Md5 string) (userFile *UserFile, err error) {
-	err = OrmDb.First(&userFile, "file_md5 = ? AND user_id = ? AND delete_flag = 0", Md5, LoginUser.ID).Error
+func GetUserFile(userId uint, Md5 string) (userFile *UserFile, err error) {
+	err = OrmDb.First(&userFile, "file_md5 = ? AND user_id = ? AND delete_flag = 0", Md5, userId).Error
 	return userFile, err
 }
 
-func GetFolder(path, name string) (err error) {
+func GetFolder(userId uint, path, name string) (err error) {
 	folder := &UserFile{}
-	err = OrmDb.First(folder, "file_path = ? AND file_name = ? AND user_id = ? AND delete_flag = 0", path, name, LoginUser.ID).Error
+	err = OrmDb.First(folder, "file_path = ? AND file_name = ? AND user_id = ? AND delete_flag = 0", path, name, userId).Error
 	return
 }
 
@@ -155,9 +150,9 @@ type DeleteFiles struct {
 	Files []*ListData `json:"files"`
 }
 
-func GetRecoveryFileList() (list []*ListData, err error) {
+func GetRecoveryFileList(userId uint) (list []*ListData, err error) {
 	userFileList := []*UserFile{}
-	err = OrmDb.Find(&userFileList, "user_id = ? AND delete_flag = 1", LoginUser.ID).Error
+	err = OrmDb.Find(&userFileList, "user_id = ? AND delete_flag = 1", userId).Error
 	if err != nil {
 		return []*ListData{}, err
 	}

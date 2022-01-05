@@ -14,8 +14,8 @@ func DeleteFileChunk(md5 string) error {
 	return models.DeleteFileChunk(md5)
 }
 
-func GetRecoveryFileList() ([]*models.ListData, error) {
-	return models.GetRecoveryFileList()
+func GetRecoveryFileList(userId uint) ([]*models.ListData, error) {
+	return models.GetRecoveryFileList(userId)
 }
 
 func GetFileById(id int) (*models.File, error) {
