@@ -83,6 +83,17 @@ func Register(c *gin.Context) {
 		log.Infof("创建用户%s文件夹成功", phone)
 	}
 	c.JSON(200, payload.SucPayload("注册成功"))
+	defer func() {
+		userInfo, err := user_service.GetUserByPhone(phone)
+		if err != nil {
+			log.Errorf("查询%s用户信息失败:%v", phone, err)
+			return
+		}
+		err = cache_service.AddUserCache(userInfo)
+		if err != nil {
+			return
+		}
+	}()
 }
 
 func CheckUserLoginInfo(c *gin.Context) {

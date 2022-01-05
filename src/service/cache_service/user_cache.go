@@ -16,7 +16,7 @@ func AddUserCache(userInfo *models.User) (err error) {
 
 	err = Rdb.SetNX(Ctx, "user_phone:"+userInfo.Phone, string(userB), 4*time.Hour).Err()
 	if err != nil {
-		log.Errorf("添加用户缓存失败：%v", err)
+		log.Errorf("添加%s用户缓存失败：%v", userInfo.Phone, err)
 		return
 	}
 
