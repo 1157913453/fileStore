@@ -1,6 +1,8 @@
 package models
 
 import (
+	cfg "filestore/config"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -18,7 +20,7 @@ var OrmDb = &gorm.DB{}
 
 func InitDB() {
 	var err error
-	dsn := "root:aaliyy46821593@tcp(118.178.237.76:3306)/fileStore?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", cfg.DbUser, cfg.DbPassword, cfg.DbIp, cfg.DbPort, cfg.DbName)
 	OrmDb, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Errorf("连接数据库失败：%v", err)

@@ -3,6 +3,13 @@ package file_service
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
+	"filestore/models"
+	"filestore/service/token_service"
+	"filestore/service/user_service"
+	"filestore/util"
+	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
@@ -97,7 +104,7 @@ func bytesToHexString(src []byte) string {
 	return res.String()
 }
 
-// 用文件前面几个字节来判断
+// GetFileType 用文件前面几个字节来判断
 // fSrc: 文件字节流（就用前面几个字节）
 func GetFileType(fSrc []byte) (fileType string) {
 	fileCode := bytesToHexString(fSrc)
@@ -141,4 +148,83 @@ func GetFileType(fSrc []byte) (fileType string) {
 		}
 	}
 	return
+}
+
+func MergeFile(myClaims *token_service.MyClaims, fileName, ChunkPath, Md5 string, totalchunks int) (err error) {
+	targetPath := "/tmp/fileStore/" + myClaims.Phone + "/" + fileName
+	err = util.MainMergeFile(totalchunks, ChunkPath+"/"+fileName, targetPath)
+	if err != nil {
+		log.Errorf("合并文件出错：%v", err)
+		return
+	}
+
+	currentMd5 := util.PathMd5(targetPath)
+	if currentMd5 != Md5 {
+		log.Errorf("上传前后Md5不一致")
+		return errors.New("上传前后Md5不一致")
+	}
+
+	return nil
+}
+
+func UpdateDbFile(myClaims *token_service.MyClaims, fileName, filePath, Md5 string, totalsize int) error {
+	targetPath := "/tmp/fileStore/" + myClaims.Phone + "/" + fileName
+	f, err := ioutil.ReadFile(targetPath)
+	if err != nil {
+		log.Errorf("读取target文件错误：%v", err)
+		return err
+	}
+	fileType := GetFileType(f[:10])
+	log.Infof("文件类型为：%s", fileType)
+
+	// 存储文件信息到数据库
+	fileMeta := &models.File{
+		FileMd5:    Md5,
+		FileName:   fileName,
+		FileSize:   uint64(totalsize),
+		FileAddr:   targetPath,
+		FileStatus: 0,
+		FileType:   fileType,
+		PointCount: 1,
+	}
+
+	var userInfo *models.User
+
+	userInfo, err = user_service.GetUser(myClaims.Phone)
+	if err != nil {
+		log.Errorf("获取%s用户信息失败:%v", myClaims.Phone, err)
+		return err
+	}
+	userFile := &models.UserFile{
+		UserId:     userInfo.ID,
+		FileMd5:    Md5,
+		FileSize:   uint64(totalsize),
+		FileName:   fileName,
+		FilePath:   filePath,
+		FileType:   fileType,
+		IsDir:      0,
+		FileStatus: 0,
+	}
+
+	// 更新file表
+	err = CreateFileMeta(fileMeta)
+	if err != nil {
+		log.Errorf("保存文件出错：%v", err)
+		return err
+	}
+
+	// 删除chunk中的缓存
+	err = DeleteFileChunk(Md5)
+	if err != nil {
+		log.Errorf("清除chunk缓存失败：%v", err)
+		return err
+	}
+
+	// 更新userFile表
+	err = CreateUserFile(userFile)
+	if err != nil {
+		log.Errorf("插入用户表出错：%v", err)
+		return err
+	}
+	return nil
 }

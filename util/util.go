@@ -88,7 +88,7 @@ func mergeFile(rfileName string, wfile *os.File) (err error) {
 	return
 }
 
-// MainMergeFile 将xxx_1,xxx_2 等合并为xxx，后嘴从_1开始
+// MainMergeFile 将xxx_1,xxx_2 等合并为xxx，后缀从_1开始
 func MainMergeFile(connumber int, filename, targetPath string) error {
 	targetFile, err := os.Create(targetPath)
 	if err != nil {

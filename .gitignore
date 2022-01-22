@@ -1,2 +1,4 @@
 .idea
 fileStore
+config/mysql.go
+config/oss.go

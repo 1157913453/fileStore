@@ -6,13 +6,12 @@ import (
 	"filestore/payload"
 	"filestore/service/cache_service"
 	"filestore/service/file_service"
+	"filestore/service/oss_service"
 	"filestore/service/token_service"
 	"filestore/service/user_service"
-	"filestore/util"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 	"strconv"
 )
 
@@ -149,84 +148,30 @@ func PostUpload(c *gin.Context) {
 	//}
 	//chunkSum := chunk.ChunkSum
 
-	// 如果是最后一个,merge所有文件
+	// 如果是最后一个分片文件
 	if chunkNum == totalchunks {
-		fmt.Println("当前登陆用户是", myClaims.Phone)
-		targetPath := "/tmp/fileStore/" + myClaims.Phone + "/" + fileName
-		fmt.Printf("当前的目标路径为：%s\n", targetPath)
-		err = util.MainMergeFile(totalchunks, ChunkPath+"/"+fileName, targetPath)
+		// 合并所有文件
+		err = file_service.MergeFile(myClaims, fileName, ChunkPath, Md5, totalchunks)
 		if err != nil {
 			log.Errorf("合并文件出错：%v", err)
-			c.JSON(200, payload.UploadRes(true))
+			c.JSON(200, payload.FailPayload("合并文件出错"))
 			return
 		}
 
-		currentMd5 := util.PathMd5(targetPath)
-		if currentMd5 != Md5 {
-			log.Errorf("上传前后Md5不一致")
-			c.JSON(200, payload.FailPayload("上传前后md5不一致"))
-			return
-		}
+		fileAddr := "/tmp/fileStore/" + myClaims.Phone + "/" + fileName
+		go func() {
+			err := oss_service.OssUploadPart(fileAddr, chunkNum)
+			if err != nil {
+				log.Errorf("上传Oss错误%v", err)
+				return
+			}
+		}()
 
-		f, err := ioutil.ReadFile(targetPath)
+		// 更新数据库
+		err = file_service.UpdateDbFile(myClaims, fileName, filePath, Md5, totalsize)
 		if err != nil {
-			log.Errorf("读取target文件错误：%v", err)
-			return
-		}
-		fileType := file_service.GetFileType(f[:10])
-		log.Infof("文件类型为：%s", fileType)
-
-		// 存储文件信息到数据库
-		fileMeta := &models.File{
-			FileMd5:    Md5,
-			FileName:   fileName,
-			FileSize:   uint64(totalsize),
-			FileAddr:   targetPath,
-			FileStatus: 0,
-			FileType:   fileType,
-			PointCount: 1,
-		}
-
-		var userInfo *models.User
-
-		userInfo, err = user_service.GetUser(myClaims.Phone)
-		if err != nil {
-			c.JSON(200, payload.FailPayload("获取用户信息失败"))
-			return
-		}
-		c.JSON(200, payload.FailPayload("获取用户信息失败"))
-
-		userFile := &models.UserFile{
-			UserId:     userInfo.ID,
-			FileMd5:    Md5,
-			FileSize:   uint64(totalsize),
-			FileName:   fileName,
-			FilePath:   filePath,
-			FileType:   fileType,
-			IsDir:      0,
-			FileStatus: 0,
-		}
-
-		err = file_service.CreateFileMeta(fileMeta)
-		if err != nil {
-			log.Errorf("保存文件出错：%v", err)
-			c.JSON(200, payload.FailPayload("保存文件出错"))
-			return
-		}
-
-		// 删除chunk中的缓存
-		err = file_service.DeleteFileChunk(Md5)
-		if err != nil {
-			log.Errorf("清除chunk缓存失败：%v", err)
-			c.JSON(200, payload.FailPayload("清除缓存失败"))
-			return
-		}
-
-		// 更新userFile表
-		err = file_service.CreateUserFile(userFile)
-		if err != nil {
-			log.Errorf("插入用户表出错：%v", err)
-			c.JSON(200, payload.FailPayload("插入用户表出错"))
+			log.Errorf("更新数据库文件失败:%v", err)
+			c.JSON(200, payload.FailPayload("更新数据库文件失败"))
 			return
 		}
 
@@ -275,6 +220,7 @@ func DownLoadFile(c *gin.Context) {
 	_, err := token_service.ParseToken(token)
 	if err != nil {
 		log.Errorf("token无效:%v", err)
+		return
 	}
 	//err := token_service.CheckToken(c)
 	//if err != nil {
