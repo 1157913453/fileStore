@@ -7,13 +7,13 @@ import (
 	"filestore/service/cache_service"
 	"filestore/service/file_service"
 	"filestore/service/oss_service"
+	"filestore/service/rabbitmq_service"
 	"filestore/service/token_service"
 	"filestore/service/user_service"
 	"filestore/util"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"os"
 	"strconv"
 )
 
@@ -142,14 +142,6 @@ func PostUpload(c *gin.Context) {
 		return
 	}
 
-	// 计数增加1
-	//chunk, err := file_service.GetChunkSum(Md5)
-	//if err != nil {
-	//	log.Errorf("获取chunkSum失败：%v", err)
-	//	return
-	//}
-	//chunkSum := chunk.ChunkSum
-
 	// 如果是最后一个分片文件
 	if chunkNum == totalchunks {
 		// 合并所有文件
@@ -161,21 +153,28 @@ func PostUpload(c *gin.Context) {
 		}
 
 		fileAddr := "/tmp/fileStore/" + myClaims.Phone + "/" + fileName
-		go func() {
-			err := oss_service.OssUploadPart(fileAddr, chunkNum)
-			if err != nil {
-				log.Errorf("上传OSS错误%v", err)
-				return
-			}
-			log.Infof("文件%s上传OSS成功", fileName)
+		// 发送到RabbitMQ队列中
+		err = rabbitmq_service.SendMQ(fileAddr, chunkNum)
+		if err != nil {
+			c.JSON(200, "RabbitMQ消息队列异常")
+			return
+		}
 
-			// 上传OSS成功后删除本地文件
-			err = os.Remove(fileAddr)
-			if err != nil {
-				log.Errorf("删除本地文件失败：%v", err)
-				return
-			}
-		}()
+		//go func() {
+		//	err := oss_service.OssUploadPart(fileAddr, chunkNum)
+		//	if err != nil {
+		//		log.Errorf("上传OSS错误%v", err)
+		//		return
+		//	}
+		//	log.Infof("文件%s上传OSS成功", fileName)
+		//
+		//	// 上传OSS成功后删除本地文件
+		//	err = os.Remove(fileAddr)
+		//	if err != nil {
+		//		log.Errorf("删除本地文件失败：%v", err)
+		//		return
+		//	}
+		//}()
 
 		// 更新数据库
 		err = file_service.UpdateDbFile(myClaims, fileName, filePath, Md5, totalsize)
@@ -184,27 +183,6 @@ func PostUpload(c *gin.Context) {
 			c.JSON(200, payload.FailPayload("更新数据库文件失败"))
 			return
 		}
-
-		//file.FileName = fileName
-		//file.PointCount += 1
-		//
-		//fileModel := &models.File{
-		//	FileName: file.Filename,
-		//	FileAddr: "/tmp/fileStore/" + LoginUser.Phone + "/" + file.Filename,
-		//}
-
-		//fileData, err := os.Open(fileModel.FileAddr)
-		//if err != nil {
-		//	c.JSON(200, payload.FailPayload("读取文件失败："+err.Error()))
-		//	return
-		//}
-		//fileModel.FileMd5 = util.FileMD5(fileData)
-		//err = file_service.CreateFileMeta(fileModel) // 更新数据库
-		//if err != nil {
-		//	c.JSON(200, payload.FailPayload(err.Error()))
-		//} else {
-		//	c.JSON(200, payload.SucPayload("上传成功"))
-		//}
 	}
 	c.JSON(200, payload.UploadRes(true))
 }

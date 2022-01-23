@@ -53,7 +53,6 @@ func OssUploadPart(fileAddr string, chunkNum int) error {
 		// 指定Object的存储类型。
 		oss.ObjectStorageClass(oss.StorageStandard),
 	}
-	log.Infof("fileAddr[15:]是%s", fileAddr[15:])
 	imur, err := bucket.InitiateMultipartUpload(fileAddr[15:], options...)
 	if err != nil {
 		log.Errorf("初始化分片上传失败：%v", err)
