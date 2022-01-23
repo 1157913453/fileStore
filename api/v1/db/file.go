@@ -162,9 +162,10 @@ func PostUpload(c *gin.Context) {
 		go func() {
 			err := oss_service.OssUploadPart(fileAddr, chunkNum)
 			if err != nil {
-				log.Errorf("上传Oss错误%v", err)
+				log.Errorf("上传OSS错误%v", err)
 				return
 			}
+			log.Infof("文件%s上传OSS成功", fileName)
 		}()
 
 		// 更新数据库
@@ -217,16 +218,13 @@ func GetFileMeta(c *gin.Context) {
 
 func DownLoadFile(c *gin.Context) {
 	token := c.Query("token")
-	_, err := token_service.ParseToken(token)
+	myClaims, err := token_service.ParseToken(token)
 	if err != nil {
 		log.Errorf("token无效:%v", err)
+		c.JSON(200, payload.FailPayload("token无效"))
 		return
 	}
-	//err := token_service.CheckToken(c)
-	//if err != nil {
-	//	c.JSON(200, payload.FailPayload("token无效"))
-	//	return
-	//}
+
 	fileId := c.Query("fileId")
 	log.Infof("下载的文件id是:%s", fileId)
 	downloadFileId, _ := strconv.Atoi(fileId)
@@ -238,9 +236,19 @@ func DownLoadFile(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "application/octet-stream")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", file.FileName))
-	c.File(file.FileAddr)
+	// 从本地返回文件
+	//c.Header("Content-Type", "application/octet-stream")
+	//c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", file.FileName))
+	//c.File(file.FileAddr)
+
+	// 从OSS返回文件流
+	data, err := oss_service.OssDownLoadFile(myClaims, file.FileName)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("从OSS下载文件失败"))
+		return
+	}
+	c.Data(200, "application/octet-stream", data)
+	log.Infof("文件从OSS下载成功")
 }
 
 func Mkdir(c *gin.Context) {

@@ -2,9 +2,11 @@ package oss_service
 
 import (
 	cfg "filestore/config"
+	"filestore/service/token_service"
 	"fmt"
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"os"
 	"path"
 )
@@ -82,4 +84,28 @@ func OssUploadPart(fileAddr string, chunkNum int) error {
 	}
 	fmt.Println("cmur:", cmur)
 	return nil
+}
+
+func OssDownLoadFile(myClaims *token_service.MyClaims, fileName string) ([]byte, error) {
+	bucket, err := ossCli.Bucket(cfg.BucketName)
+	if err != nil {
+		log.Errorf("获取bucket:%s失败：%v", cfg.BucketName, err)
+		return nil, err
+	}
+	// 下载文件到流。
+	body, err := bucket.GetObject(myClaims.Phone + "/" + fileName)
+	if err != nil {
+		log.Errorf("获取body流失败：%v", err)
+		return nil, err
+	}
+	// 数据读取完成后，获取的流必须关闭，否则会造成连接泄漏，导致请求无连接可用，程序无法正常工作。
+	defer body.Close()
+
+	data, err := ioutil.ReadAll(body)
+	if err != nil {
+		log.Errorf("读取body流失败:%v", err)
+		return nil, err
+	}
+
+	return data, nil
 }
