@@ -9,9 +9,11 @@ import (
 	"filestore/service/oss_service"
 	"filestore/service/token_service"
 	"filestore/service/user_service"
+	"filestore/util"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"os"
 	"strconv"
 )
 
@@ -166,6 +168,13 @@ func PostUpload(c *gin.Context) {
 				return
 			}
 			log.Infof("文件%s上传OSS成功", fileName)
+
+			// 上传OSS成功后删除本地文件
+			err = os.Remove(fileAddr)
+			if err != nil {
+				log.Errorf("删除本地文件失败：%v", err)
+				return
+			}
 		}()
 
 		// 更新数据库
@@ -236,10 +245,19 @@ func DownLoadFile(c *gin.Context) {
 		return
 	}
 
-	// 从本地返回文件
-	//c.Header("Content-Type", "application/octet-stream")
-	//c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", file.FileName))
-	//c.File(file.FileAddr)
+	// 如果OSS未上传完就马上下载，则从本地返回文件
+	exit, err := util.PathExists(file.FileAddr)
+	if err != nil {
+		log.Errorf("查询文件是否存在失败：%v", err)
+		return
+	}
+	if exit {
+		// 从本地返回文件
+		c.Header("Content-Type", "application/octet-stream")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", file.FileName))
+		c.File(file.FileAddr)
+		return
+	}
 
 	// 从OSS返回文件流
 	data, err := oss_service.OssDownLoadFile(myClaims, file.FileName)
