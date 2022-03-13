@@ -5,6 +5,8 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 	"hash"
 	"io"
 	"os"
@@ -110,4 +112,22 @@ func MainMergeFile(connumber int, filename, targetPath string) error {
 		}
 	}
 	return err
+}
+
+func HashAndSalt(pwd []byte) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword(pwd, bcrypt.MinCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
+}
+
+func ComparePassword(hashPwd string, plainPwd []byte) bool {
+	byteHash := []byte(hashPwd)
+	err := bcrypt.CompareHashAndPassword(byteHash, plainPwd)
+	if err != nil {
+		log.Errorf("密码比较错误：", err)
+		return false
+	}
+	return true
 }

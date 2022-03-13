@@ -1,8 +1,10 @@
 package user_service
 
 import (
+	"errors"
 	"filestore/models"
 	"filestore/service/cache_service"
+	"filestore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,11 +27,21 @@ func CreateUser(phone, password, userName string) error {
 	return models.CreateUser(user)
 }
 
-func CheckPassword(phone, encPassword string) error {
-	return models.CheckUser(phone, encPassword)
+func CheckPassword(phone, Password string) error {
+	Pwd, err := models.GetPwdByPhone(phone)
+	if err != nil {
+		return err
+	}
+	ok := util.ComparePassword(Pwd, []byte(Password))
+	if !ok {
+		log.Errorf("密码解密错误：%v", err)
+		return errors.New("密码错误")
+	}
+	return nil
+	//return models.CheckUser(phone, encPassword)
 }
 
-// 通过reds或数据库查询用户
+// 通过redis或数据库查询用户
 func GetUser(phone string) (userInfo *models.User, err error) {
 	userInfo, err = cache_service.GetUserCache(phone)
 	if err != nil { // 缓存没找到就到数据库找并更新缓存

@@ -2,6 +2,7 @@ package api
 
 import (
 	dbApi "filestore/api/v1/db"
+	"github.com/DeanThompson/ginpprof"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
@@ -37,9 +38,10 @@ func InitRouter() {
 
 		Api.GET("/user/home", dbApi.Login)
 	}
-
+	ginpprof.Wrap(Router)
 	err := Router.Run(":8888")
 	if err != nil {
 		log.Errorf("运行错误：%v", err)
 	}
+
 }

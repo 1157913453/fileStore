@@ -203,6 +203,59 @@ func GetFileMeta(c *gin.Context) {
 	c.JSON(200, payload.SucDataPayload("获取成功", string(data)))
 }
 
+func GetFileList(c *gin.Context) {
+	myClaims, err := token_service.CheckToken(c)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("token无效"))
+	}
+	filePath, page, pageCount, fileType := c.DefaultQuery("filePath", "/"), c.DefaultQuery("currentPage", "1"), //fileType: 0为全部文件，1、2、3、4、5分别对应图片，视频，文档，音乐，其他
+		c.DefaultQuery("pageCount", "50"), c.DefaultQuery("fileType", "0")
+	Page, _ := strconv.Atoi(page)
+	PageCount, _ := strconv.Atoi(pageCount)
+	listData, err := file_service.GetFileList(myClaims.Phone, fileType, filePath, Page, PageCount)
+	if err != nil {
+		log.Errorf("获取文件列表出错:%v", err)
+		c.JSON(200, payload.FailPayload("获取文件列表出错"))
+		return
+	}
+
+	c.JSON(200, payload.SucFileListPayload("获取文件列表成功", true, listData))
+
+	//data := []byte(`{
+	//"code":0,
+	//"data":{
+	//	"total": 1,
+	//"list":[{
+	//	"fileId":1,
+	//	"deleteFlag":0,
+	//	"extendName":"gg",
+	//	"fileName":"444",
+	//	"filePath":"/",
+	//	"fileSize":4554,
+	//	"fileUrl":"upload/20211223/d77ba387-fdfa-48bc-885b-0a4599e4ef37.gg",
+	//	"identifier":"d77ba387-fdfa-48bc-885b",
+	//	"isDir" :0,
+	//	"storageType": 1,
+	//	"uploadTime":"2021-12-23 01:26:23",
+	//	"userId":789,
+	//	"userFileId":1234
+	//}]
+	//},
+	//"message": "成功",
+	//"success": true
+	//}`)
+	//js, err := simplejson.NewJson(data)
+	//if err != nil {
+	//	log.Errorf("e是：%v", err)
+	//}
+	//
+	////d1 := &Dd{}
+	////err := json.Unmarshal(data, d1)
+	////log.Errorf("err是：%v", err)
+	////log.Infof("错误是：%v", d1)
+	//c.JSON(200, js)
+}
+
 func DownLoadFile(c *gin.Context) {
 	token := c.Query("token")
 	myClaims, err := token_service.ParseToken(token)

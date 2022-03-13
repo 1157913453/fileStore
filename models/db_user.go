@@ -21,9 +21,15 @@ func GetUserByEmail(email string) {
 }
 
 func CheckUser(phone, encPassword string) (err error) {
-	user := &User{}
+	user := User{}
 	err = OrmDb.First(user, "phone = ? AND password = ?", phone, encPassword).Error
 	return
+}
+
+func GetPwdByPhone(phone string) (Pwd string, err error) {
+	user := new(User)
+	err = OrmDb.First(user, "phone = ?", phone).Error
+	return user.Password, err
 }
 
 func GetUserByPhone(phone string) (user *User, err error) {

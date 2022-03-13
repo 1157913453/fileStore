@@ -4,7 +4,6 @@ import (
 	"filestore/models"
 	"filestore/payload"
 	"filestore/service/cache_service"
-	"filestore/service/file_service"
 	"filestore/service/token_service"
 	"filestore/service/user_service"
 	"filestore/util"
@@ -12,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"os"
-	"strconv"
 )
 
 const (
@@ -56,7 +54,13 @@ func Register(c *gin.Context) {
 	}
 
 	// 对密码加密
-	encPassword := util.Sha1([]byte(password + pwdSalt))
+	encPassword, err := util.HashAndSalt([]byte(password))
+	if err != nil {
+		log.Errorf("密码加密失败：%v", err)
+		c.JSON(200, payload.FailPayload("密码加密失败"))
+		return
+	}
+	//encPassword := util.Sha1([]byte(password + pwdSalt))
 	err = user_service.CreateUser(phone, encPassword, userName)
 	if err != nil {
 		log.Errorf("注册失败：%v", err)
@@ -154,8 +158,8 @@ func Login(c *gin.Context) {
 	}
 
 	// 查询密码是否正确
-	encPassword := util.Sha1([]byte(password + pwdSalt))
-	err = user_service.CheckPassword(phone, encPassword)
+	//encPassword := util.Sha1([]byte(password + pwdSalt))
+	err = user_service.CheckPassword(phone, password)
 	if err != nil {
 		log.Errorf("登陆失败:%v", err)
 		c.JSON(200, payload.FailPayload(fmt.Sprintf("登陆失败：%v", err)))
@@ -234,59 +238,6 @@ func GetUserInfo(c *gin.Context) {
 //	Msg    string `json:"msg"`
 //	UserInfo   []Dd1  `json:"data"`
 //}
-
-func GetFileList(c *gin.Context) {
-	myClaims, err := token_service.CheckToken(c)
-	if err != nil {
-		c.JSON(200, payload.FailPayload("token无效"))
-	}
-	filePath, page, pageCount, fileType := c.DefaultQuery("filePath", "/"), c.DefaultQuery("currentPage", "1"), //fileType: 0为全部文件，1、2、3、4、5分别对应图片，视频，文档，音乐，其他
-		c.DefaultQuery("pageCount", "50"), c.DefaultQuery("fileType", "0")
-	Page, _ := strconv.Atoi(page)
-	PageCount, _ := strconv.Atoi(pageCount)
-	listData, err := file_service.GetFileList(myClaims.Phone, fileType, filePath, Page, PageCount)
-	if err != nil {
-		log.Errorf("获取文件列表出错:%v", err)
-		c.JSON(200, payload.FailPayload("获取文件列表出错"))
-		return
-	}
-
-	c.JSON(200, payload.SucFileListPayload("获取文件列表成功", true, listData))
-
-	//data := []byte(`{
-	//"code":0,
-	//"data":{
-	//	"total": 1,
-	//"list":[{
-	//	"fileId":1,
-	//	"deleteFlag":0,
-	//	"extendName":"gg",
-	//	"fileName":"444",
-	//	"filePath":"/",
-	//	"fileSize":4554,
-	//	"fileUrl":"upload/20211223/d77ba387-fdfa-48bc-885b-0a4599e4ef37.gg",
-	//	"identifier":"d77ba387-fdfa-48bc-885b",
-	//	"isDir" :0,
-	//	"storageType": 1,
-	//	"uploadTime":"2021-12-23 01:26:23",
-	//	"userId":789,
-	//	"userFileId":1234
-	//}]
-	//},
-	//"message": "成功",
-	//"success": true
-	//}`)
-	//js, err := simplejson.NewJson(data)
-	//if err != nil {
-	//	log.Errorf("e是：%v", err)
-	//}
-	//
-	////d1 := &Dd{}
-	////err := json.Unmarshal(data, d1)
-	////log.Errorf("err是：%v", err)
-	////log.Infof("错误是：%v", d1)
-	//c.JSON(200, js)
-}
 
 func GetFilePathTree(c *gin.Context) {
 	c.JSON(200, gin.H{})
