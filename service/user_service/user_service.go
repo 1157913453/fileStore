@@ -34,7 +34,6 @@ func CheckPassword(phone, Password string) error {
 	}
 	ok := util.ComparePassword(Pwd, []byte(Password))
 	if !ok {
-		log.Errorf("密码解密错误：%v", err)
 		return errors.New("密码错误")
 	}
 	return nil

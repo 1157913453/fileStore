@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"filestore/config"
 	"filestore/models"
 	"filestore/service/token_service"
 	"filestore/service/user_service"
@@ -151,7 +152,7 @@ func GetFileType(fSrc []byte) (fileType string) {
 }
 
 func MergeFile(myClaims *token_service.MyClaims, fileName, ChunkPath, Md5 string, totalchunks int) (err error) {
-	targetPath := "/tmp/fileStore/" + myClaims.Phone + "/" + fileName
+	targetPath := config.BasePath + myClaims.Phone + "/" + fileName
 	err = util.MainMergeFile(totalchunks, ChunkPath+"/"+fileName, targetPath)
 	if err != nil {
 		log.Errorf("合并文件出错：%v", err)
@@ -168,7 +169,7 @@ func MergeFile(myClaims *token_service.MyClaims, fileName, ChunkPath, Md5 string
 }
 
 func UpdateDbFile(myClaims *token_service.MyClaims, fileName, filePath, Md5 string, totalsize int) error {
-	targetPath := "/tmp/fileStore/" + myClaims.Phone + "/" + fileName
+	targetPath := config.BasePath + myClaims.Phone + "/" + fileName
 	f, err := ioutil.ReadFile(targetPath)
 	if err != nil {
 		log.Errorf("读取target文件错误：%v", err)

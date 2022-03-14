@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"filestore/config"
 	"filestore/models"
 	"filestore/payload"
 	"filestore/service/cache_service"
@@ -15,10 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"strconv"
-)
-
-var (
-	ChunkPath = "/tmp/fileStore/chunk"
 )
 
 func Upload(c *gin.Context) {
@@ -120,7 +117,7 @@ func PostUpload(c *gin.Context) {
 	chunks, _ := strconv.Atoi(totalChunks)
 	totalchunks, _ := strconv.Atoi(totalChunks)
 
-	err = c.SaveUploadedFile(file, ChunkPath+"/"+file.Filename) // 保存文件
+	err = c.SaveUploadedFile(file, config.ChunkPath+"/"+file.Filename) // 保存文件
 	if err != nil {
 		log.Errorf("保存文件%s失败：%v", file.Filename, err)
 		c.JSON(200, payload.FailPayload("保存文件失败："+err.Error()))
@@ -145,14 +142,14 @@ func PostUpload(c *gin.Context) {
 	// 如果是最后一个分片文件
 	if chunkNum == totalchunks {
 		// 合并所有文件
-		err = file_service.MergeFile(myClaims, fileName, ChunkPath, Md5, totalchunks)
+		err = file_service.MergeFile(myClaims, fileName, config.ChunkPath, Md5, totalchunks)
 		if err != nil {
 			log.Errorf("合并文件出错：%v", err)
 			c.JSON(200, payload.FailPayload("合并文件出错"))
 			return
 		}
 
-		fileAddr := "/tmp/fileStore/" + myClaims.Phone + "/" + fileName
+		fileAddr := config.BasePath + myClaims.Phone + "/" + fileName
 		// 发送到RabbitMQ队列中
 		err = rabbitmq_service.SendMQ(fileAddr, chunkNum)
 		if err != nil {

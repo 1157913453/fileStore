@@ -1,6 +1,7 @@
 package db
 
 import (
+	"filestore/config"
 	"filestore/models"
 	"filestore/payload"
 	"filestore/service/cache_service"
@@ -68,7 +69,7 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	path := "/tmp/fileStore/" + phone
+	path := config.BasePath + phone
 	exists, err := util.PathExists(path)
 	if err != nil {
 		log.Errorf("判断用户目录是否存在失败:%v", err)

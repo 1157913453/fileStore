@@ -126,7 +126,7 @@ func ComparePassword(hashPwd string, plainPwd []byte) bool {
 	byteHash := []byte(hashPwd)
 	err := bcrypt.CompareHashAndPassword(byteHash, plainPwd)
 	if err != nil {
-		log.Errorf("密码比较错误：", err)
+		log.Errorf("密码比较错误：%v", err)
 		return false
 	}
 	return true
