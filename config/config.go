@@ -1,6 +1,6 @@
 package config
 
 var (
-	BasePath  = "/usr/fileStore/"
+	BasePath  = "/data/fileStore/"
 	ChunkPath = BasePath + "chunk"
 )

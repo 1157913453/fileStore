@@ -163,14 +163,7 @@ func PostUpload(c *gin.Context) {
 		//		log.Errorf("上传OSS错误%v", err)
 		//		return
 		//	}
-		//	log.Infof("文件%s上传OSS成功", fileName)
 		//
-		//	// 上传OSS成功后删除本地文件
-		//	err = os.Remove(fileAddr)
-		//	if err != nil {
-		//		log.Errorf("删除本地文件失败：%v", err)
-		//		return
-		//	}
 		//}()
 
 		// 更新数据库
@@ -205,8 +198,10 @@ func GetFileList(c *gin.Context) {
 	if err != nil {
 		c.JSON(200, payload.FailPayload("token无效"))
 	}
-	filePath, page, pageCount, fileType := c.DefaultQuery("filePath", "/"), c.DefaultQuery("currentPage", "1"), //fileType: 0为全部文件，1、2、3、4、5分别对应图片，视频，文档，音乐，其他
-		c.DefaultQuery("pageCount", "50"), c.DefaultQuery("fileType", "0")
+	filePath, page, pageCount, fileType := c.DefaultQuery("filePath", "/"),
+		c.DefaultQuery("currentPage", "1"), //fileType: 0为全部文件，1、2、3、4、5分别对应图片，视频，文档，音乐，其他
+		c.DefaultQuery("pageCount", "50"),
+		c.DefaultQuery("fileType", "0")
 	Page, _ := strconv.Atoi(page)
 	PageCount, _ := strconv.Atoi(pageCount)
 	listData, err := file_service.GetFileList(myClaims.Phone, fileType, filePath, Page, PageCount)

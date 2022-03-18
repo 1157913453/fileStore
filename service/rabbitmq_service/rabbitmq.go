@@ -6,6 +6,7 @@ import (
 	json "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"os"
 )
 
 var (
@@ -56,7 +57,7 @@ func ReceiveMQ() {
 		log.Errorf("接受RabbitMQ消息错误：%v", err)
 		return
 	}
-
+	limitChan := make(chan struct{}, 1000) // 最多同时存在1000个上传oss的任务
 	for msg := range msgs {
 		// 起个goroutine执行任务
 		m := &SendMQMsg{}
@@ -65,10 +66,19 @@ func ReceiveMQ() {
 			log.Errorf("反序列化失败：%v", err)
 			return
 		}
+		limitChan <- struct{}{}
 		go func() {
 			err = oss_service.OssUploadPart(m.FileAddr, m.ChunkNum)
 			if err != nil {
 				log.Errorf("上传OSS失败：%v", err)
+				return
+			}
+			<-limitChan
+			log.Infof("文件%s上传OSS成功", m.FileAddr)
+			// 上传OSS成功后删除本地文件
+			err = os.Remove(m.FileAddr)
+			if err != nil {
+				log.Errorf("删除本地文件失败：%v", err)
 				return
 			}
 		}()
