@@ -35,6 +35,7 @@ func InitRouter() {
 
 		// 其他
 		Api.GET("/filetransfer/getstorage", dbApi.GetStorage)
+		Api.GET("/filetransfer/preview", dbApi.GetFilePreview)
 
 		Api.GET("/user/home", dbApi.Login)
 	}

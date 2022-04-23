@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"strconv"
 )
 
@@ -49,6 +50,7 @@ func Upload(c *gin.Context) {
 		}
 
 		c.JSON(200, payload.NormalUpload(uploads, true))
+		fmt.Println("uploads是：", uploads)
 		return
 		// 不分片
 	}
@@ -197,6 +199,7 @@ func GetFileList(c *gin.Context) {
 	myClaims, err := token_service.CheckToken(c)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("token无效"))
+		return
 	}
 	filePath, page, pageCount, fileType := c.DefaultQuery("filePath", "/"),
 		c.DefaultQuery("currentPage", "1"), //fileType: 0为全部文件，1、2、3、4、5分别对应图片，视频，文档，音乐，其他
@@ -384,6 +387,56 @@ func GetRecoveryFileList(c *gin.Context) {
 		return
 	}
 	c.JSON(200, payload.SucDataPayload("查询回收站数据成功", list))
+}
+
+func GetFilePreview(c *gin.Context) {
+	token := c.Query("token")
+	myClaims, err := token_service.ParseToken(token)
+	if err != nil {
+		log.Errorf("token无效:%v", err)
+		c.JSON(200, payload.FailPayload("token无效"))
+		return
+	}
+
+	fileId := c.Query("fileId")
+	previewFileId, _ := strconv.Atoi(fileId)
+
+	file, err := file_service.GetFileById(previewFileId)
+	if err != nil {
+		log.Errorf("查找文件id错误：%v", err)
+		c.JSON(200, payload.FailPayload("查找文件id错误"))
+		return
+	}
+
+	// 如果OSS未上传完就马上下载，则从本地返回文件
+	exit, err := util.PathExists(file.FileAddr)
+	if err != nil {
+		log.Errorf("查询文件是否存在失败：%v", err)
+		return
+	}
+	if exit {
+		// 从本地返回文件
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Content-Disposition", fmt.Sprintf("filename=%s", file.FileName))
+		fileData, err := ioutil.ReadFile(file.FileAddr)
+		if err != nil {
+			log.Errorf("打开文件错误：%v", err)
+			c.JSON(200, payload.FailPayload("打开文件失败"))
+			return
+		}
+		c.Data(200, "", fileData)
+		log.Infof("从本地返回文件数据成功")
+		return
+	}
+
+	// 从OSS返回文件流
+	data, err := oss_service.OssDownLoadFile(myClaims, file.FileName)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("从OSS下载文件失败"))
+		return
+	}
+	c.Data(200, "", data)
+	log.Infof("文件从OSS预览成功")
 }
 
 //

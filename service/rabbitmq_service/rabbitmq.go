@@ -19,13 +19,30 @@ func init() {
 	MQConn, err = amqp.Dial(cfg.RabbitURL)
 	if err != nil {
 		log.Errorf("初始化RabbitMQ失败：%v", err)
-	} else {
-		log.Infof("初始化RabbitMQ成功")
 	}
 	Ch, err = MQConn.Channel()
 	if err != nil {
 		log.Errorf("创建RabbitMQ通道失败:%v", err)
 	}
+
+	err = Ch.ExchangeDeclare(cfg.ExchangeName, cfg.ExchangeType, true, false, false, false, nil)
+	if err != nil {
+		log.Errorf("创建RabbitMQ交换机错误")
+		panic(err)
+	}
+
+	_, err = Ch.QueueDeclare(cfg.QueueName, cfg.QueueDurable, false, false, false, nil)
+	if err != nil {
+		log.Errorf("创建RabbitMQ队列错误")
+		panic(err)
+	}
+
+	err = Ch.QueueBind(cfg.QueueName, cfg.RoutingKey, cfg.ExchangeName, false, nil)
+	if err != nil {
+		log.Errorf("交换机和Queue绑定错误")
+		panic(err)
+	}
+	log.Infof("初始化RabbitMQ成功")
 	go ReceiveMQ()
 }
 
@@ -41,7 +58,7 @@ func SendMQ(fileAddr string, chunkNum int) error {
 		log.Errorf("序列化msg失败：%v", err)
 		return err
 	}
-	err = Ch.Publish(cfg.TransExchangeName, cfg.TransOSSRoutingKey, false, false, amqp.Publishing{
+	err = Ch.Publish(cfg.ExchangeName, cfg.RoutingKey, false, false, amqp.Publishing{
 		ContentType: "text/plain",
 		Body:        body,
 	})
@@ -52,7 +69,7 @@ func SendMQ(fileAddr string, chunkNum int) error {
 }
 
 func ReceiveMQ() {
-	msgs, err := Ch.Consume(cfg.TransOSSQueueName, "transfer_oss", true, false, false, false, nil)
+	msgs, err := Ch.Consume(cfg.QueueName, "transfer_oss", true, false, false, false, nil)
 	if err != nil {
 		log.Errorf("接受RabbitMQ消息错误：%v", err)
 		return

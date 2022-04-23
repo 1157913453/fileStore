@@ -20,7 +20,7 @@ var (
 	fileTypeMap sync.Map
 	Image       = []string{"png", "jpg", "jpeg", "gif", "webp", "bmp", "pcx", "tif", "tga", "exif", "fpx", "svg", "ico", "psd", "cdr", "pcd", "dxf", "ufo", "eps", "ai", "hdri", "raw", "wfm", "flic", "emf", "avif", "apng"}
 	Video       = []string{"wmv", "asf", "asxc", "rmvb", "rm", "mpg", "mpeg", "mpe", "mp4", "3gp", "mov", "avi", "m4v", "dat", "mkv", "flv", "vob", "qt", "ogg", "mod", "ram", "viv"}
-	Document    = []string{"doc", "docx", "docv", "xml", "xls", "xlsx", "pdf", "txt", "ppt"}
+	Document    = []string{"doc", "docx", "docv", "xml", "xls", "xlsx", "pdf", "txt", "ppt", "jar"}
 	Music       = []string{"mp3", "ape", "wav", "flac", "ape"}
 )
 
