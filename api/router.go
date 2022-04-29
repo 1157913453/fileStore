@@ -14,28 +14,28 @@ func InitRouter() {
 	Api := Router.Group("/api")
 	{
 		// 文件接口
-		Api.POST("/file/upload", dbApi.PostUpload) // 真实上传接口
-		Api.GET("/file/upload", dbApi.Upload)
+		Api.POST("/file/upload", dbApi.PostUpload)    // 上传文件数据
+		Api.GET("/file/upload", dbApi.Upload)         // 上传文件
 		Api.GET("/file/meta", dbApi.GetFileMeta)      // 获取文件
 		Api.GET("/file/download", dbApi.DownLoadFile) // 下载文件
 		Api.GET("/file/list", dbApi.GetFileList)      // 获取文件列表
-		//Api.GET("/file/selectFileByType", dbApi.GetFileList)   // 获取对应类型文件列表
-		Api.GET("/file/path/tree", dbApi.GetFilePathTree) //
-		Api.POST("/file/mkdir", dbApi.Mkdir)
-		Api.POST("/file/batchDeleteFile", dbApi.BatchDeleteFile)
-		Api.POST("/recoveryFile/list", dbApi.GetRecoveryFileList)
+		//Api.GET("/file/selectFileByType", dbApi.GetFileList)              // 获取对应类型文件列表
+		Api.GET("/file/path/tree", dbApi.GetFilePathTree)         // 获取文件树
+		Api.POST("/file/mkdir", dbApi.Mkdir)                      // 创建文件夹
+		Api.POST("/file/batchDeleteFile", dbApi.BatchDeleteFile)  // 批量删除
+		Api.POST("/recoveryFile/list", dbApi.GetRecoveryFileList) // 获取回收站文件列表
 
 		// 用户接口
 		Api.POST("/user/register", dbApi.Register)                    // 注册
 		Api.GET("/user/login", dbApi.Login)                           // 登录
 		Api.GET("/user/checkUserLoginInfo", dbApi.CheckUserLoginInfo) // 检查用户信息
-		//Api.POST("/user/login", dbApi.Login)
-		Api.GET("/user/storage/info", dbApi.GetUserStorageInfo) // 获取用户储存信息
-		Api.GET("/user/info", dbApi.GetUserInfo)
+		//Api.GET("/user/storage/info", dbApi.GetUserStorageInfo)               // 获取用户存储空间信息
+		Api.GET("/user/info", dbApi.GetUserInfo) // 获取用户信息
 
 		// 其他
-		Api.GET("/filetransfer/getstorage", dbApi.GetStorage)
-		Api.GET("/filetransfer/preview", dbApi.GetFilePreview)
+		Api.GET("/filetransfer/getstorage", dbApi.GetStorage)       // 获取用户存储空间信息
+		Api.GET("/filetransfer/preview", dbApi.GetImagePreview)     // 预览图片
+		Api.POST("/office/previewofficefile", dbApi.GetFilePreview) // 预览
 
 		Api.GET("/user/home", dbApi.Login)
 	}

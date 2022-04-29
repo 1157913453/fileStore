@@ -2,7 +2,6 @@ package token_service
 
 import (
 	"errors"
-	"filestore/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
@@ -20,6 +19,15 @@ func Secret() jwt.Keyfunc {
 	return func(token *jwt.Token) (interface{}, error) {
 		return []byte("天涯"), nil
 	}
+}
+
+func CheckToken(c *gin.Context) (myClaims *MyClaims, err error) {
+	token := c.GetHeader("token")
+	myClaims, err = ParseToken(token)
+	if err != nil {
+		log.Errorf("token无效:%v", err)
+	}
+	return
 }
 
 func ParseToken(tokenss string) (*MyClaims, error) {
@@ -57,15 +65,6 @@ func MakeToken(phone string) (tokenString string, err error) {
 	return tokenString, err
 }
 
-func UpdateToken(phone, token string) error {
-	return models.UpdateToken(phone, token)
-}
-
-func CheckToken(c *gin.Context) (myClaims *MyClaims, err error) {
-	token := c.GetHeader("token")
-	myClaims, err = ParseToken(token)
-	if err != nil {
-		log.Errorf("token无效:%v", err)
-	}
-	return
-}
+//func UpdateToken(phone, token string) error {
+//	return models.UpdateToken(phone, token)
+//}

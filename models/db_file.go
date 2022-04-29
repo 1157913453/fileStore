@@ -6,10 +6,10 @@ import (
 )
 
 type File struct {
-	FileMd5    string `gorm:"type:char(32);not null;uniqueIndex:idx_fileMd5;default:''" json:"fileMd5"`
-	FileName   string `gorm:"type:varchar(256);not null;index" json:"fileName"`
-	FileSize   uint64 `gorm:"not null;default:0" json:"fileSize"`
-	FileAddr   string `gorm:"type:varchar(1024);not null;default:''" json:"fileAddr"`
+	FileMd5  string `gorm:"type:char(32);not null;uniqueIndex:idx_fileMd5;default:''" json:"fileMd5"`
+	FileName string `gorm:"type:varchar(256);not null;index" json:"fileName"`
+	FileSize uint64 `gorm:"not null;default:0" json:"fileSize"`
+	FileAddr string `gorm:"type:varchar(1024);not null;default:''" json:"fileAddr"`
 	FileStatus int8   `gorm:"default:0" json:"fileStatus"`
 	FileType   string `gorm:"type:varchar(8)" json:"fileType"`
 	PointCount uint32 `gorm:"not null;default:0" json:"pointCount"`

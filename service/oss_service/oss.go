@@ -2,7 +2,6 @@ package oss_service
 
 import (
 	cfg "filestore/config"
-	"filestore/service/token_service"
 	"fmt"
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	log "github.com/sirupsen/logrus"
@@ -85,14 +84,14 @@ func OssUploadPart(fileAddr string, chunkNum int) error {
 	return nil
 }
 
-func OssDownLoadFile(myClaims *token_service.MyClaims, fileName string) ([]byte, error) {
+func OssDownLoadFile(phone string, fileName string) ([]byte, error) {
 	bucket, err := ossCli.Bucket(cfg.BucketName)
 	if err != nil {
 		log.Errorf("获取bucket:%s失败：%v", cfg.BucketName, err)
 		return nil, err
 	}
 	// 下载文件到流。
-	body, err := bucket.GetObject(myClaims.Phone + "/" + fileName)
+	body, err := bucket.GetObject("/" + phone + "/" + fileName)
 	if err != nil {
 		log.Errorf("获取body流失败：%v", err)
 		return nil, err

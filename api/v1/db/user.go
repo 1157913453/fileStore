@@ -45,9 +45,7 @@ func Register(c *gin.Context) {
 		c.JSON(200, payload.FailPayload("参数绑定错误"))
 		return
 	}
-	phone := register.Phone
-	userName := register.UserName
-	password := register.Password
+	phone, userName, password := register.Phone, register.UserName, register.Password
 	if len(phone) < 11 || len(password) < 5 {
 		log.Errorf("手机号或密码太短")
 		c.JSON(200, payload.FailPayload("手机号或密码太短"))
@@ -172,12 +170,12 @@ func Login(c *gin.Context) {
 		log.Errorf("生成token失败%v", err)
 		return
 	}
-	err = token_service.UpdateToken(phone, token)
-	if err != nil {
-		log.Errorf("更新token失败:%v", err)
-		c.JSON(200, payload.FailPayload(fmt.Sprintf("更新token失败:%v", err)))
-		return
-	}
+	//err = token_service.UpdateToken(phone, token)
+	//if err != nil {
+	//	log.Errorf("更新token失败:%v", err)
+	//	c.JSON(200, payload.FailPayload(fmt.Sprintf("更新token失败:%v", err)))
+	//	return
+	//}
 
 	data := ResUserInfo{
 		Code:    0,
@@ -191,24 +189,6 @@ func Login(c *gin.Context) {
 	c.JSON(200, data)
 	// 缓存用户信息
 	defer cache_service.AddUserCache(userInfo)
-
-	//data := []byte(`{
-	//	"code": 0,
-	//	"data": {
-	//		"email": "116****483@qq.com",
-	//		"lastLoginTime": "2019-12-23 14:21:52",
-	//		"registerTime": "2019-12-23 14:21:52",
-	//		"phone": "187****1817",
-	//		"token": "",
-	//		"userId": 1,
-	//		"username": "奇文网盘"
-	//	},
-	//	"message": "成功",
-	//	"success": true
-	//}`)
-	//js, _ := simplejson.NewJson(data)
-	//c.JSON(200, js)
-
 }
 
 func GetUserInfo(c *gin.Context) {

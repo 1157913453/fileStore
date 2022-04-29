@@ -26,9 +26,9 @@ func Upload(c *gin.Context) {
 		c.JSON(200, payload.FailPayload("token无效"))
 	}
 	// 根据Md5判断是否已有文件
-	chunkNumber, chunkSize, currentChunkSize, filePath := c.Query("chunkNumber"), c.Query("chunkSize"), c.Query("currentChunkSize"), c.Query("filePath")
-	fileName, Md5, relativePath, totalChunks, totalSize := c.Query("filename"), c.Query("identifier"), c.Query("relativePath"), c.Query("totalChunks"), c.Query("totalSize")
-	fmt.Println(relativePath, totalChunks, chunkNumber, chunkSize, currentChunkSize)
+	//chunkNumber, chunkSize, currentChunkSize, filePath := c.Query("chunkNumber"), c.Query("chunkSize"), c.Query("currentChunkSize"), c.Query("filePath")
+	fileName, Md5, _, totalChunks, totalSize := c.Query("filename"), c.Query("identifier"), c.Query("relativePath"), c.Query("totalChunks"), c.Query("totalSize")
+	filePath := c.Query("filePath")
 	var uploads []int
 	file, err := file_service.GetFileMeta(Md5)
 	if err != nil {
@@ -159,15 +159,6 @@ func PostUpload(c *gin.Context) {
 			return
 		}
 
-		//go func() {
-		//	err := oss_service.OssUploadPart(fileAddr, chunkNum)
-		//	if err != nil {
-		//		log.Errorf("上传OSS错误%v", err)
-		//		return
-		//	}
-		//
-		//}()
-
 		// 更新数据库
 		err = file_service.UpdateDbFile(myClaims, fileName, filePath, Md5, totalsize)
 		if err != nil {
@@ -216,39 +207,6 @@ func GetFileList(c *gin.Context) {
 
 	c.JSON(200, payload.SucFileListPayload("获取文件列表成功", true, listData))
 
-	//data := []byte(`{
-	//"code":0,
-	//"data":{
-	//	"total": 1,
-	//"list":[{
-	//	"fileId":1,
-	//	"deleteFlag":0,
-	//	"extendName":"gg",
-	//	"fileName":"444",
-	//	"filePath":"/",
-	//	"fileSize":4554,
-	//	"fileUrl":"upload/20211223/d77ba387-fdfa-48bc-885b-0a4599e4ef37.gg",
-	//	"identifier":"d77ba387-fdfa-48bc-885b",
-	//	"isDir" :0,
-	//	"storageType": 1,
-	//	"uploadTime":"2021-12-23 01:26:23",
-	//	"userId":789,
-	//	"userFileId":1234
-	//}]
-	//},
-	//"message": "成功",
-	//"success": true
-	//}`)
-	//js, err := simplejson.NewJson(data)
-	//if err != nil {
-	//	log.Errorf("e是：%v", err)
-	//}
-	//
-	////d1 := &Dd{}
-	////err := json.Unmarshal(data, d1)
-	////log.Errorf("err是：%v", err)
-	////log.Infof("错误是：%v", d1)
-	//c.JSON(200, js)
 }
 
 func DownLoadFile(c *gin.Context) {
@@ -286,7 +244,7 @@ func DownLoadFile(c *gin.Context) {
 	}
 
 	// 从OSS返回文件流
-	data, err := oss_service.OssDownLoadFile(myClaims, file.FileName)
+	data, err := oss_service.OssDownLoadFile(myClaims.Phone, file.FileName)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("从OSS下载文件失败"))
 		return
@@ -389,7 +347,8 @@ func GetRecoveryFileList(c *gin.Context) {
 	c.JSON(200, payload.SucDataPayload("查询回收站数据成功", list))
 }
 
-func GetFilePreview(c *gin.Context) {
+// 预览图片
+func GetImagePreview(c *gin.Context) {
 	token := c.Query("token")
 	myClaims, err := token_service.ParseToken(token)
 	if err != nil {
@@ -430,13 +389,74 @@ func GetFilePreview(c *gin.Context) {
 	}
 
 	// 从OSS返回文件流
-	data, err := oss_service.OssDownLoadFile(myClaims, file.FileName)
+	data, err := oss_service.OssDownLoadFile(myClaims.Phone, file.FileName)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("从OSS下载文件失败"))
 		return
 	}
 	c.Data(200, "", data)
 	log.Infof("文件从OSS预览成功")
+}
+
+type previewJson struct {
+	UserFileId string `json:"userFileId"`
+	PreviewUrl string `json:"previewUrl"`
+}
+
+//
+func GetFilePreview(c *gin.Context) {
+	token := c.GetHeader("token")
+	myClaims, err := token_service.ParseToken(token)
+	if err != nil {
+		log.Errorf("token无效:%v", err)
+		c.JSON(200, payload.FailPayload("token无效"))
+		return
+	}
+
+	var PreviewJson previewJson
+	err = c.ShouldBindJSON(&PreviewJson)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("绑定参数失败失败"))
+		return
+	}
+	previewFileId, _ := strconv.Atoi(PreviewJson.UserFileId)
+
+	file, err := file_service.GetUserFileById(previewFileId)
+	if err != nil {
+		log.Errorf("查找文件id错误：%v", err)
+		c.JSON(200, payload.FailPayload("查找文件id错误"))
+		return
+	}
+
+	// 如果OSS未上传完就马上下载，则从本地返回文件
+	targetPath := config.BasePath + myClaims.Phone + "/" + file.FileName
+	exit, err := util.PathExists(targetPath)
+	if err != nil {
+		log.Errorf("查询文件是否存在失败：%v", err)
+		return
+	}
+	if exit {
+		// 从本地返回文件
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Content-Disposition", fmt.Sprintf("filename=%s", file.FileName))
+		fileData, err := ioutil.ReadFile(targetPath)
+		if err != nil {
+			log.Errorf("打开文件错误：%v", err)
+			c.JSON(200, payload.FailPayload("打开文件失败"))
+			return
+		}
+		c.Data(200, "", fileData)
+		log.Infof("从本地返回文件数据成功")
+		return
+	}
+
+	// 从OSS返回文件流
+	data, err := oss_service.OssDownLoadFile(myClaims.Phone, file.FileName)
+	if err != nil {
+		c.JSON(200, payload.FailPayload("从OSS下载文件失败"))
+		return
+	}
+	c.Data(200, "", data)
 }
 
 //

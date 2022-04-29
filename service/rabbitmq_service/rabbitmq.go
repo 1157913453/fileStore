@@ -42,7 +42,6 @@ func init() {
 		log.Errorf("交换机和Queue绑定错误")
 		panic(err)
 	}
-	log.Infof("初始化RabbitMQ成功")
 	go ReceiveMQ()
 }
 
@@ -74,17 +73,19 @@ func ReceiveMQ() {
 		log.Errorf("接受RabbitMQ消息错误：%v", err)
 		return
 	}
+	log.Infof("初始化RabbitMQ,接受消息成功")
 	limitChan := make(chan struct{}, 1000) // 最多同时存在1000个上传oss的任务
 	for msg := range msgs {
 		// 起个goroutine执行任务
 		m := &SendMQMsg{}
 		err = json.Unmarshal(msg.Body, m)
 		if err != nil {
-			log.Errorf("反序列化失败：%v", err)
+			log.Errorf("RabbitMQ中反序列化失败：%v", err)
 			return
 		}
 		limitChan <- struct{}{}
 		go func() {
+			log.Infof("%s上传OSS开始", m.FileAddr)
 			err = oss_service.OssUploadPart(m.FileAddr, m.ChunkNum)
 			if err != nil {
 				log.Errorf("上传OSS失败：%v", err)

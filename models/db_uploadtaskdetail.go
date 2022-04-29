@@ -20,3 +20,14 @@ func CreateUploadTaskDetail(detail *UploadTaskDetail) (err error) {
 	err = OrmDb.Create(detail).Error
 	return
 }
+
+func DeleteFileChunk(Md5 string) (err error) {
+	taskDetail := new(UploadTaskDetail)
+	//var chunk *Chunk
+	err = OrmDb.Where("file_md5 = ?", Md5).Delete(taskDetail).Error
+	//if err != nil {
+	//	return
+	//}
+	//err = OrmDb.Where("file_md5 = ?").Delete(chunk).Error
+	return
+}

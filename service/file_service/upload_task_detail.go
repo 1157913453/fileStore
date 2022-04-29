@@ -9,7 +9,3 @@ func QueryUploadTaskDetails(Md5 string) ([]*models.UploadTaskDetail, error) {
 func CreateUploadTaskDetail(detail *models.UploadTaskDetail) error {
 	return models.CreateUploadTaskDetail(detail)
 }
-
-func GetChunkSum(Md5 string) (*models.Chunk, error) {
-	return models.GetChunkSum(Md5)
-}

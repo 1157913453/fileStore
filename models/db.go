@@ -27,7 +27,7 @@ func InitDB() {
 		return
 	}
 
-	err = OrmDb.AutoMigrate(&File{}, &User{}, &UserToken{}, &UserFile{}, &UploadTask{}, UploadTaskDetail{}, &Chunk{})
+	err = OrmDb.AutoMigrate(&File{}, &User{}, &UserFile{}, UploadTaskDetail{})
 	if err != nil {
 		log.Panicf("迁移表格失败：%v", err)
 	}

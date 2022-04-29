@@ -190,6 +190,7 @@ func GetRecoveryFileList(userId uint) (list []*ListData, err error) {
 }
 
 func GetUserFileById(id int) (file *UserFile, err error) {
+	file = new(UserFile)
 	err = OrmDb.First(file, "id = ? AND delete_flag = 0", id).Error
 	if err != nil {
 		return nil, err

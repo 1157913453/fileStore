@@ -109,6 +109,7 @@ func bytesToHexString(src []byte) string {
 // fSrc: 文件字节流（就用前面几个字节）
 func GetFileType(fSrc []byte) (fileType string) {
 	fileCode := bytesToHexString(fSrc)
+	log.Infof("前面几个字节为：%v", fileCode)
 
 	fileTypeMap.Range(func(key, value interface{}) bool {
 		k := key.(string)
