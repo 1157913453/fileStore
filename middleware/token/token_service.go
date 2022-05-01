@@ -1,10 +1,12 @@
-package token_service
+package middleware
 
 import (
 	"errors"
+	"filestore/payload"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"time"
 )
 
@@ -21,6 +23,22 @@ func Secret() jwt.Keyfunc {
 	}
 }
 
+func LoginRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.GetHeader("token")
+		myClaims, err := ParseToken(token)
+		if err != nil {
+			log.Errorf("token无效:%v", err)
+			c.JSON(http.StatusForbidden, payload.FailPayload("token无效"))
+			//c.Abort()
+			return
+		}
+		c.Set("Phone", myClaims.Phone)
+		c.Next()
+		return
+	}
+}
+
 func CheckToken(c *gin.Context) (myClaims *MyClaims, err error) {
 	token := c.GetHeader("token")
 	myClaims, err = ParseToken(token)
@@ -30,8 +48,8 @@ func CheckToken(c *gin.Context) (myClaims *MyClaims, err error) {
 	return
 }
 
-func ParseToken(tokenss string) (*MyClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenss, &MyClaims{}, Secret())
+func ParseToken(tokens string) (*MyClaims, error) {
+	token, err := jwt.ParseWithClaims(tokens, &MyClaims{}, Secret())
 	if err != nil {
 		if ve, ok := err.(*jwt.ValidationError); ok {
 			if ve.Errors&jwt.ValidationErrorMalformed != 0 {

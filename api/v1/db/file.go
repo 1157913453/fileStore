@@ -3,13 +3,13 @@ package db
 import (
 	"encoding/json"
 	"filestore/config"
+	middleware "filestore/middleware/token"
 	"filestore/models"
 	"filestore/payload"
 	"filestore/service/cache_service"
 	"filestore/service/file_service"
 	"filestore/service/oss_service"
 	"filestore/service/rabbitmq_service"
-	"filestore/service/token_service"
 	"filestore/service/user_service"
 	"filestore/util"
 	"fmt"
@@ -20,15 +20,12 @@ import (
 )
 
 func Upload(c *gin.Context) {
-	// 检查token
-	myClaims, err := token_service.CheckToken(c)
-	if err != nil {
-		c.JSON(200, payload.FailPayload("token无效"))
-	}
 	// 根据Md5判断是否已有文件
 	//chunkNumber, chunkSize, currentChunkSize, filePath := c.Query("chunkNumber"), c.Query("chunkSize"), c.Query("currentChunkSize"), c.Query("filePath")
 	fileName, Md5, _, totalChunks, totalSize := c.Query("filename"), c.Query("identifier"), c.Query("relativePath"), c.Query("totalChunks"), c.Query("totalSize")
 	filePath := c.Query("filePath")
+	Phone, _ := c.Get("Phone")
+	phone := Phone.(string)
 	var uploads []int
 	file, err := file_service.GetFileMeta(Md5)
 	if err != nil {
@@ -57,7 +54,7 @@ func Upload(c *gin.Context) {
 	log.Infof("数据库中已有该文件，开始极速上传")
 
 	// 获取用户信息
-	userInfo, err := cache_service.GetUserCache(myClaims.Phone)
+	userInfo, err := cache_service.GetUserCache(phone)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("获取缓存错误"))
 		return
@@ -94,12 +91,8 @@ func Upload(c *gin.Context) {
 }
 
 func PostUpload(c *gin.Context) {
-	// 检查token
-	myClaims, err := token_service.CheckToken(c)
-	if err != nil {
-		c.JSON(200, payload.FailPayload("token无效"))
-	}
-
+	Phone, _ := c.Get("Phone")
+	phone := Phone.(string)
 	//接受file数据流
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -144,14 +137,14 @@ func PostUpload(c *gin.Context) {
 	// 如果是最后一个分片文件
 	if chunkNum == totalchunks {
 		// 合并所有文件
-		err = file_service.MergeFile(myClaims, fileName, config.ChunkPath, Md5, totalchunks)
+		err = file_service.MergeFile(phone, fileName, config.ChunkPath, Md5, totalchunks)
 		if err != nil {
 			log.Errorf("合并文件出错：%v", err)
 			c.JSON(200, payload.FailPayload("合并文件出错"))
 			return
 		}
 
-		fileAddr := config.BasePath + myClaims.Phone + "/" + fileName
+		fileAddr := config.BasePath + phone + "/" + fileName
 		// 发送到RabbitMQ队列中
 		err = rabbitmq_service.SendMQ(fileAddr, chunkNum)
 		if err != nil {
@@ -160,7 +153,7 @@ func PostUpload(c *gin.Context) {
 		}
 
 		// 更新数据库
-		err = file_service.UpdateDbFile(myClaims, fileName, filePath, Md5, totalsize)
+		err = file_service.UpdateDbFile(phone, fileName, filePath, Md5, totalsize)
 		if err != nil {
 			log.Errorf("更新数据库文件失败:%v", err)
 			c.JSON(200, payload.FailPayload("更新数据库文件失败"))
@@ -187,18 +180,20 @@ func GetFileMeta(c *gin.Context) {
 }
 
 func GetFileList(c *gin.Context) {
-	myClaims, err := token_service.CheckToken(c)
-	if err != nil {
-		c.JSON(200, payload.FailPayload("token无效"))
-		return
-	}
+	//myClaims, err := middleware.CheckToken(c)
+	//if err != nil {
+	//	c.JSON(200, payload.FailPayload("token无效"))
+	//	return
+	//}
+	Phone, _ := c.Get("Phone")
+	phone := Phone.(string)
 	filePath, page, pageCount, fileType := c.DefaultQuery("filePath", "/"),
 		c.DefaultQuery("currentPage", "1"), //fileType: 0为全部文件，1、2、3、4、5分别对应图片，视频，文档，音乐，其他
 		c.DefaultQuery("pageCount", "50"),
 		c.DefaultQuery("fileType", "0")
 	Page, _ := strconv.Atoi(page)
 	PageCount, _ := strconv.Atoi(pageCount)
-	listData, err := file_service.GetFileList(myClaims.Phone, fileType, filePath, Page, PageCount)
+	listData, err := file_service.GetFileList(phone, fileType, filePath, Page, PageCount)
 	if err != nil {
 		log.Errorf("获取文件列表出错:%v", err)
 		c.JSON(200, payload.FailPayload("获取文件列表出错"))
@@ -210,14 +205,8 @@ func GetFileList(c *gin.Context) {
 }
 
 func DownLoadFile(c *gin.Context) {
-	token := c.Query("token")
-	myClaims, err := token_service.ParseToken(token)
-	if err != nil {
-		log.Errorf("token无效:%v", err)
-		c.JSON(200, payload.FailPayload("token无效"))
-		return
-	}
-
+	Phone, _ := c.Get("Phone")
+	phone := Phone.(string)
 	fileId := c.Query("fileId")
 	log.Infof("下载的文件id是:%s", fileId)
 	downloadFileId, _ := strconv.Atoi(fileId)
@@ -244,7 +233,7 @@ func DownLoadFile(c *gin.Context) {
 	}
 
 	// 从OSS返回文件流
-	data, err := oss_service.OssDownLoadFile(myClaims.Phone, file.FileName)
+	data, err := oss_service.OssDownLoadFile(phone, file.FileName)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("从OSS下载文件失败"))
 		return
@@ -254,13 +243,10 @@ func DownLoadFile(c *gin.Context) {
 }
 
 func Mkdir(c *gin.Context) {
-	myClaims, err := token_service.CheckToken(c)
-	if err != nil {
-		c.JSON(200, payload.FailPayload("token无效"))
-		return
-	}
+	Phone, _ := c.Get("Phone")
+	phone := Phone.(string)
 	folder := new(models.Folder)
-	err = c.ShouldBindJSON(folder)
+	err := c.ShouldBindJSON(folder)
 	if err != nil {
 		log.Errorf("绑定folder参数错误：%v", err)
 		c.JSON(200, payload.FailPayload("绑定folder参数错误"))
@@ -270,7 +256,7 @@ func Mkdir(c *gin.Context) {
 	// 获取用户信息
 	var userInfo *models.User
 
-	userInfo, err = user_service.GetUser(myClaims.Phone)
+	userInfo, err = user_service.GetUser(phone)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("查询用户失败"))
 		return
@@ -326,13 +312,10 @@ func BatchDeleteFile(c *gin.Context) {
 }
 
 func GetRecoveryFileList(c *gin.Context) {
-	myClaims, err := token_service.CheckToken(c)
-	if err != nil {
-		c.JSON(200, payload.FailPayload("token无效"))
-		return
-	}
+	Phone, _ := c.Get("Phone")
+	phone := Phone.(string)
 
-	userInfo, err := user_service.GetUser(myClaims.Phone)
+	userInfo, err := user_service.GetUser(phone)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("获取用户信息失败"))
 		return
@@ -350,12 +333,14 @@ func GetRecoveryFileList(c *gin.Context) {
 // 预览图片
 func GetImagePreview(c *gin.Context) {
 	token := c.Query("token")
-	myClaims, err := token_service.ParseToken(token)
+	myClaims, err := middleware.ParseToken(token)
 	if err != nil {
 		log.Errorf("token无效:%v", err)
 		c.JSON(200, payload.FailPayload("token无效"))
 		return
 	}
+	//Phone, _ := c.Get("Phone")
+	//phone := Phone.(string)
 
 	fileId := c.Query("fileId")
 	previewFileId, _ := strconv.Atoi(fileId)
@@ -395,7 +380,7 @@ func GetImagePreview(c *gin.Context) {
 		return
 	}
 	c.Data(200, "", data)
-	log.Infof("文件从OSS预览成功")
+	log.Infof("%v从OSS预览成功", file.FileName)
 }
 
 type previewJson struct {
@@ -405,16 +390,11 @@ type previewJson struct {
 
 //
 func GetFilePreview(c *gin.Context) {
-	token := c.GetHeader("token")
-	myClaims, err := token_service.ParseToken(token)
-	if err != nil {
-		log.Errorf("token无效:%v", err)
-		c.JSON(200, payload.FailPayload("token无效"))
-		return
-	}
+	Phone, _ := c.Get("Phone")
+	phone := Phone.(string)
 
 	var PreviewJson previewJson
-	err = c.ShouldBindJSON(&PreviewJson)
+	err := c.ShouldBindJSON(&PreviewJson)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("绑定参数失败失败"))
 		return
@@ -429,7 +409,7 @@ func GetFilePreview(c *gin.Context) {
 	}
 
 	// 如果OSS未上传完就马上下载，则从本地返回文件
-	targetPath := config.BasePath + myClaims.Phone + "/" + file.FileName
+	targetPath := config.BasePath + phone + "/" + file.FileName
 	exit, err := util.PathExists(targetPath)
 	if err != nil {
 		log.Errorf("查询文件是否存在失败：%v", err)
@@ -451,7 +431,7 @@ func GetFilePreview(c *gin.Context) {
 	}
 
 	// 从OSS返回文件流
-	data, err := oss_service.OssDownLoadFile(myClaims.Phone, file.FileName)
+	data, err := oss_service.OssDownLoadFile(phone, file.FileName)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("从OSS下载文件失败"))
 		return

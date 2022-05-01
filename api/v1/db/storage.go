@@ -14,7 +14,7 @@ func GetStorage(c *gin.Context) {
 		"modifyUserId": 1,
 		"storageId": 1,
 		"storageSize": 10033,
-		"totalStorageSize": 1233440000,
+		"totalStorageSize": 1073741824,
 		"userId": 1
 	},
 	"message": "成功",
@@ -22,7 +22,7 @@ func GetStorage(c *gin.Context) {
 }`)
 	js, err := simplejson.NewJson(data)
 	if err != nil {
-		log.Errorf("errrrrr是：%v", err)
+		log.Errorf("errr是：%v", err)
 	}
 	c.JSON(200, js)
 }

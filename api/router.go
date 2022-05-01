@@ -2,6 +2,7 @@ package api
 
 import (
 	dbApi "filestore/api/v1/db"
+	middleware "filestore/middleware/token"
 	"github.com/DeanThompson/ginpprof"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -12,6 +13,11 @@ var Router *gin.Engine
 func InitRouter() {
 	Router = gin.Default()
 	Api := Router.Group("/api")
+	// 用户接口
+	Api.POST("/user/register", dbApi.Register)              // 注册
+	Api.GET("/user/login", dbApi.Login)                     // 登录
+	Api.GET("/filetransfer/preview", dbApi.GetImagePreview) // 预览图片
+	Api.Use(middleware.LoginRequired())
 	{
 		// 文件接口
 		Api.POST("/file/upload", dbApi.PostUpload)    // 上传文件数据
@@ -26,15 +32,12 @@ func InitRouter() {
 		Api.POST("/recoveryFile/list", dbApi.GetRecoveryFileList) // 获取回收站文件列表
 
 		// 用户接口
-		Api.POST("/user/register", dbApi.Register)                    // 注册
-		Api.GET("/user/login", dbApi.Login)                           // 登录
 		Api.GET("/user/checkUserLoginInfo", dbApi.CheckUserLoginInfo) // 检查用户信息
 		//Api.GET("/user/storage/info", dbApi.GetUserStorageInfo)               // 获取用户存储空间信息
 		Api.GET("/user/info", dbApi.GetUserInfo) // 获取用户信息
 
 		// 其他
 		Api.GET("/filetransfer/getstorage", dbApi.GetStorage)       // 获取用户存储空间信息
-		Api.GET("/filetransfer/preview", dbApi.GetImagePreview)     // 预览图片
 		Api.POST("/office/previewofficefile", dbApi.GetFilePreview) // 预览
 
 		Api.GET("/user/home", dbApi.Login)

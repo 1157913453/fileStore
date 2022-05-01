@@ -6,7 +6,6 @@ import (
 	"errors"
 	"filestore/config"
 	"filestore/models"
-	"filestore/service/token_service"
 	"filestore/service/user_service"
 	"filestore/util"
 	log "github.com/sirupsen/logrus"
@@ -152,8 +151,8 @@ func GetFileType(fSrc []byte) (fileType string) {
 	return
 }
 
-func MergeFile(myClaims *token_service.MyClaims, fileName, ChunkPath, Md5 string, totalchunks int) (err error) {
-	targetPath := config.BasePath + myClaims.Phone + "/" + fileName
+func MergeFile(phone string, fileName, ChunkPath, Md5 string, totalchunks int) (err error) {
+	targetPath := config.BasePath + phone + "/" + fileName
 	err = util.MainMergeFile(totalchunks, ChunkPath+"/"+fileName, targetPath)
 	if err != nil {
 		log.Errorf("合并文件出错：%v", err)
@@ -169,8 +168,8 @@ func MergeFile(myClaims *token_service.MyClaims, fileName, ChunkPath, Md5 string
 	return nil
 }
 
-func UpdateDbFile(myClaims *token_service.MyClaims, fileName, filePath, Md5 string, totalsize int) error {
-	targetPath := config.BasePath + myClaims.Phone + "/" + fileName
+func UpdateDbFile(phone string, fileName, filePath, Md5 string, totalsize int) error {
+	targetPath := config.BasePath + phone + "/" + fileName
 	f, err := ioutil.ReadFile(targetPath)
 	if err != nil {
 		log.Errorf("读取target文件错误：%v", err)
@@ -192,9 +191,9 @@ func UpdateDbFile(myClaims *token_service.MyClaims, fileName, filePath, Md5 stri
 
 	var userInfo *models.User
 
-	userInfo, err = user_service.GetUser(myClaims.Phone)
+	userInfo, err = user_service.GetUser(phone)
 	if err != nil {
-		log.Errorf("获取%s用户信息失败:%v", myClaims.Phone, err)
+		log.Errorf("获取%s用户信息失败:%v", phone, err)
 		return err
 	}
 	userFile := &models.UserFile{

@@ -2,10 +2,10 @@ package db
 
 import (
 	"filestore/config"
+	"filestore/middleware/token"
 	"filestore/models"
 	"filestore/payload"
 	"filestore/service/cache_service"
-	"filestore/service/token_service"
 	"filestore/service/user_service"
 	"filestore/util"
 	"fmt"
@@ -101,21 +101,14 @@ func Register(c *gin.Context) {
 
 func CheckUserLoginInfo(c *gin.Context) {
 	token := c.GetHeader("token")
-
-	// 判断token是否有效
-	myClaims, err := token_service.ParseToken(token)
-	//_, err := token_service.ParseToken(token)
-	if err != nil {
-		log.Errorf("token 无效：%v", err)
-		c.JSON(200, payload.FailPayload("token无效"))
-		return
-	}
+	Phone, _ := c.Get("Phone")
+	phone := Phone.(string)
 
 	// 判断缓存是否存在
-	_, err = cache_service.GetUserCache(myClaims.Phone)
+	_, err := cache_service.GetUserCache(phone)
 	if err != nil {
 		// 设置缓存
-		userInfo, err := user_service.GetUserByPhone(myClaims.Phone)
+		userInfo, err := user_service.GetUserByPhone(phone)
 		if err != nil {
 			c.JSON(200, payload.FailPayload("查询用户信息失败"))
 			return
@@ -165,12 +158,12 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, err := token_service.MakeToken(phone)
+	token, err := middleware.MakeToken(phone)
 	if err != nil {
 		log.Errorf("生成token失败%v", err)
 		return
 	}
-	//err = token_service.UpdateToken(phone, token)
+	//err = token.UpdateToken(phone, token)
 	//if err != nil {
 	//	log.Errorf("更新token失败:%v", err)
 	//	c.JSON(200, payload.FailPayload(fmt.Sprintf("更新token失败:%v", err)))
