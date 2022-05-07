@@ -102,6 +102,9 @@ func CheckUserLoginInfo(c *gin.Context) {
 	if !exists {
 		_, err := middleware.ParseToken(token)
 		if err != nil {
+			if token == "undefined" {
+				return
+			}
 			log.Errorf("token Err:%v", err)
 			return
 		}
@@ -120,6 +123,7 @@ func CheckUserLoginInfo(c *gin.Context) {
 		return
 	}
 	phone := Phone.(string)
+	log.Infof("phone8888 is %v", phone)
 	// 判断缓存是否存在
 	_, err := cache_service.GetUserCache(phone)
 	if err != nil {
@@ -149,7 +153,6 @@ func CheckUserLoginInfo(c *gin.Context) {
 	}
 
 	c.JSON(200, data)
-
 }
 
 func Login(c *gin.Context) {
@@ -197,7 +200,7 @@ func Login(c *gin.Context) {
 			Token: token,
 		},
 	}
-	log.Infof("%s登陆成功", phone)
+	log.Infof("用户%s登陆成功", phone)
 	c.JSON(200, data)
 	// 缓存用户信息
 	defer cache_service.AddUserCache(userInfo)
