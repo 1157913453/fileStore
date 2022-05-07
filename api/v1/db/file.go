@@ -205,8 +205,14 @@ func GetFileList(c *gin.Context) {
 }
 
 func DownLoadFile(c *gin.Context) {
-	Phone, _ := c.Get("Phone")
-	phone := Phone.(string)
+	token := c.Query("token")
+	myClaims, err := middleware.ParseToken(token)
+	if err != nil {
+		log.Errorf("token无效:%v", err)
+		c.JSON(200, payload.FailPayload("token无效"))
+		return
+	}
+
 	fileId := c.Query("fileId")
 	log.Infof("下载的文件id是:%s", fileId)
 	downloadFileId, _ := strconv.Atoi(fileId)
@@ -233,7 +239,7 @@ func DownLoadFile(c *gin.Context) {
 	}
 
 	// 从OSS返回文件流
-	data, err := oss_service.OssDownLoadFile(phone, file.FileName)
+	data, err := oss_service.OssDownLoadFile(myClaims.Phone, file.FileName)
 	if err != nil {
 		c.JSON(200, payload.FailPayload("从OSS下载文件失败"))
 		return

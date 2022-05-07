@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"filestore/config"
 	"filestore/payload"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
@@ -15,11 +16,9 @@ type MyClaims struct {
 	jwt.RegisteredClaims
 }
 
-var MySecret = []byte("天涯")
-
 func Secret() jwt.Keyfunc {
 	return func(token *jwt.Token) (interface{}, error) {
-		return []byte("天涯"), nil
+		return config.MySecret, nil
 	}
 }
 
@@ -39,14 +38,14 @@ func LoginRequired() gin.HandlerFunc {
 	}
 }
 
-func CheckToken(c *gin.Context) (myClaims *MyClaims, err error) {
-	token := c.GetHeader("token")
-	myClaims, err = ParseToken(token)
-	if err != nil {
-		log.Errorf("token无效:%v", err)
-	}
-	return
-}
+//func CheckToken(c *gin.Context) (myClaims *MyClaims, err error) {
+//	token := c.GetHeader("token")
+//	myClaims, err = ParseToken(token)
+//	if err != nil {
+//		log.Errorf("token无效:%v", err)
+//	}
+//	return
+//}
 
 func ParseToken(tokens string) (*MyClaims, error) {
 	token, err := jwt.ParseWithClaims(tokens, &MyClaims{}, Secret())
@@ -69,7 +68,7 @@ func ParseToken(tokens string) (*MyClaims, error) {
 	return nil, errors.New("couldn't handle this token")
 }
 
-// MakeToken 生成token
+// 生成token
 func MakeToken(phone string) (tokenString string, err error) {
 	claim := MyClaims{
 		Phone: phone,
@@ -79,10 +78,6 @@ func MakeToken(phone string) (tokenString string, err error) {
 			NotBefore: jwt.NewNumericDate(time.Now()),                                       // 生效时间
 		}}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
-	tokenString, err = token.SignedString(MySecret)
+	tokenString, err = token.SignedString(config.MySecret)
 	return tokenString, err
 }
-
-//func UpdateToken(phone, token string) error {
-//	return models.UpdateToken(phone, token)
-//}

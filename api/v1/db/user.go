@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"filestore/config"
 	"filestore/middleware/token"
 	"filestore/models"
@@ -11,6 +12,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"io/fs"
 	"os"
 )
 
@@ -68,23 +70,17 @@ func Register(c *gin.Context) {
 	}
 
 	path := config.BasePath + phone
-	exists, err := util.PathExists(path)
+	err = os.Mkdir(path, os.ModePerm)
 	if err != nil {
-		log.Errorf("判断用户目录是否存在失败:%v", err)
-		c.JSON(200, payload.FailPayload("判断用户是否存在失败"))
-		return
-	}
-	if exists {
-		log.Infof("%s目录已存在", phone)
-	} else {
-		err = os.Mkdir(path, os.ModePerm)
-		if err != nil {
+		if !errors.Is(err, fs.ErrExist) {
 			log.Errorf("创建%s用户文件夹失败:%v", phone, err)
 			c.JSON(200, payload.FailPayload("创建用户文件夹失败"))
 			return
 		}
-		log.Infof("创建用户%s文件夹成功", phone)
 	}
+
+	log.Infof("创建用户%s文件夹成功", phone)
+
 	c.JSON(200, payload.SucPayload("注册成功"))
 	defer func() {
 		userInfo, err := user_service.GetUserByPhone(phone)
@@ -101,20 +97,42 @@ func Register(c *gin.Context) {
 
 func CheckUserLoginInfo(c *gin.Context) {
 	token := c.GetHeader("token")
-	Phone, _ := c.Get("Phone")
-	phone := Phone.(string)
 
+	Phone, exists := c.Get("Phone")
+	if !exists {
+		_, err := middleware.ParseToken(token)
+		if err != nil {
+			log.Errorf("token Err:%v", err)
+			return
+		}
+
+		data := ResUserInfo{
+			Code:    0,
+			Success: true,
+			Message: "检查成功",
+			Data: &UserInfo{
+				//User:  models.LoginUser,
+				Token: token,
+			},
+		}
+
+		c.JSON(200, data)
+		return
+	}
+	phone := Phone.(string)
 	// 判断缓存是否存在
 	_, err := cache_service.GetUserCache(phone)
 	if err != nil {
 		// 设置缓存
 		userInfo, err := user_service.GetUserByPhone(phone)
 		if err != nil {
+			log.Errorf("查询用户信息失败:%v", err)
 			c.JSON(200, payload.FailPayload("查询用户信息失败"))
 			return
 		}
 		err = cache_service.AddUserCache(userInfo)
 		if err != nil {
+			log.Errorf("设置用户缓存失败:%v", err)
 			c.JSON(200, payload.FailPayload("设置用户缓存失败"))
 			return
 		}
@@ -157,6 +175,7 @@ func Login(c *gin.Context) {
 		c.JSON(200, payload.FailPayload(fmt.Sprintf("登陆失败：%v", err)))
 		return
 	}
+	c.Set("Phone", phone)
 
 	token, err := middleware.MakeToken(phone)
 	if err != nil {
@@ -178,7 +197,7 @@ func Login(c *gin.Context) {
 			Token: token,
 		},
 	}
-
+	log.Infof("%s登陆成功", phone)
 	c.JSON(200, data)
 	// 缓存用户信息
 	defer cache_service.AddUserCache(userInfo)
