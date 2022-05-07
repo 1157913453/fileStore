@@ -2,6 +2,9 @@ package oss_service
 
 import (
 	cfg "filestore/config"
+	"filestore/models"
+
+	//"filestore/models"
 	"fmt"
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	log "github.com/sirupsen/logrus"
@@ -64,7 +67,6 @@ func OssUploadPart(fileAddr string, chunkNum int) error {
 		part, err := bucket.UploadPart(imur, fd, chunk.Size, chunk.Number)
 		if err != nil {
 			log.Errorf("上传oss分片失败：%v", err)
-			os.Exit(-1)
 			return err
 		}
 		parts = append(parts, part)
@@ -77,7 +79,6 @@ func OssUploadPart(fileAddr string, chunkNum int) error {
 	cmur, err := bucket.CompleteMultipartUpload(imur, parts)
 	if err != nil {
 		log.Errorf("合并oss分片失败：%v", err)
-		os.Exit(-1)
 		return err
 	}
 	fmt.Println("cmur:", cmur)
@@ -106,4 +107,24 @@ func OssDownLoadFile(phone string, fileName string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+func OssDeleteFiles(files []*models.File) {
+	bucket, err := ossCli.Bucket(cfg.BucketName)
+	if err != nil {
+		log.Errorf("获取bucket:%s失败：%v", cfg.BucketName, err)
+		return
+	}
+
+	// 填写需要删除的多个文件完整路径，文件完整路径中不能包含Bucket名称。
+	fileNames := []string{}
+	for _, file := range files {
+		fileNames = append(fileNames, file.FileAddr[15:])
+	}
+	delRes, err := bucket.DeleteObjects(fileNames)
+	if err != nil {
+		log.Errorf("Delete Oss File Err: %v", err)
+		return
+	}
+	log.Info("Deleted Oss Objects Success:", delRes.DeletedObjects)
 }

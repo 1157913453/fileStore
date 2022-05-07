@@ -145,8 +145,52 @@ func BatchDeleteFile(files []*ListData) (err error) {
 	return
 }
 
+func BatchDelete(files []*ListData) (err error) {
+	for _, v := range files {
+		if v.ExtendName != "" { // 有后缀名
+			v.FileName = v.FileName + "." + v.ExtendName
+		}
+		err = OrmDb.Where("file_name = ? AND user_id = ? AND file_path = ?", v.FileName, v.UserId, v.FilePath).Delete(&UserFile{}).Error
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func PermanentlyDelete(files []*ListData) (DeleteOssFiles []*File, err error) {
+	file := &File{}
+	DeleteOssFiles = []*File{}
+	for _, v := range files {
+		if v.ExtendName != "" { // 有后缀名
+			v.FileName = v.FileName + "." + v.ExtendName
+		}
+		err = OrmDb.Where("file_md5", v.Md5).First(file).Error
+		if err != nil {
+			return
+		}
+		point_count := file.PointCount - 1
+		if point_count <= 0 {
+			err = OrmDb.Where("file_md5", v.Md5).Delete(&File{}).Error
+			if err != nil {
+				return
+			}
+			DeleteOssFiles = append(DeleteOssFiles, file)
+		}
+		err = OrmDb.Model(&File{}).Where("file_md5", v.Md5).Update("", point_count).Error
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
 type DeleteFiles struct {
 	Files []*ListData `json:"files"`
+}
+
+type DeleteRecoveryFiles struct {
+	Files []*ListData `json:"recoveryFileIds"`
 }
 
 func GetRecoveryFileList(userId uint) (list []*ListData, err error) {

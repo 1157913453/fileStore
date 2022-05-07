@@ -25,16 +25,15 @@ func InitRouter() {
 		Api.POST("/file/upload", dbApi.PostUpload) // 上传文件数据
 		Api.GET("/file/upload", dbApi.Upload)      // 上传文件
 		Api.GET("/file/meta", dbApi.GetFileMeta)   // 获取文件
-
-		Api.GET("/file/list", dbApi.GetFileList) // 获取文件列表
+		Api.GET("/file/list", dbApi.GetFileList)   // 获取文件列表
 		//Api.GET("/file/selectFileByType", dbApi.GetFileList)              // 获取对应类型文件列表
-		Api.GET("/file/path/tree", dbApi.GetFilePathTree)         // 获取文件树
-		Api.POST("/file/mkdir", dbApi.Mkdir)                      // 创建文件夹
-		Api.POST("/file/batchDeleteFile", dbApi.BatchDeleteFile)  // 批量删除
-		Api.POST("/recoveryFile/list", dbApi.GetRecoveryFileList) // 获取回收站文件列表
+		Api.GET("/file/path/tree", dbApi.GetFilePathTree)                // 获取文件树
+		Api.POST("/file/mkdir", dbApi.Mkdir)                             // 创建文件夹
+		Api.POST("/file/batchDeleteFile", dbApi.BatchDeleteFile)         // 批量删除
+		Api.POST("/recoveryFile/batchDelete", dbApi.BatchDeleteRecovery) // 永久删除文件
+		Api.POST("/recoveryFile/list", dbApi.GetRecoveryFileList)        // 获取回收站文件列表
 
 		// 用户接口
-
 		//Api.GET("/user/storage/info", dbApi.GetUserStorageInfo)               // 获取用户存储空间信息
 		Api.GET("/user/info", dbApi.GetUserInfo) // 获取用户信息
 

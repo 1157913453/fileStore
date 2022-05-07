@@ -2,6 +2,7 @@ package file_service
 
 import (
 	"filestore/models"
+	"filestore/service/oss_service"
 	"filestore/service/user_service"
 )
 
@@ -27,6 +28,16 @@ func GetUserFile(userId uint, Md5 string) (*models.UserFile, error) {
 
 func BatchDeleteFile(files models.DeleteFiles) error {
 	return models.BatchDeleteFile(files.Files)
+}
+
+func BatchDelete(files models.DeleteRecoveryFiles) error {
+	return models.BatchDelete(files.Files)
+}
+
+func PermanentlyDelete(files models.DeleteRecoveryFiles) error {
+	DeleteOssFiles, err := models.PermanentlyDelete(files.Files)
+	go oss_service.OssDeleteFiles(DeleteOssFiles)
+	return err
 }
 
 func GetUserFileById(id int) (*models.UserFile, error) {

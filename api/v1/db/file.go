@@ -317,6 +317,27 @@ func BatchDeleteFile(c *gin.Context) {
 	c.JSON(200, payload.SucPayload("批量删除文件成功"))
 }
 
+func BatchDeleteRecovery(c *gin.Context) {
+	lists := models.DeleteRecoveryFiles{}
+	err := c.ShouldBindJSON(&lists)
+
+	if err != nil {
+		log.Errorf("永久删除文件时绑定参数出错：%s\n", err.Error())
+		c.JSON(200, payload.FailPayload("永久删除文件时绑定参数出错"))
+		return
+	}
+
+	err = file_service.BatchDelete(lists)
+	if err != nil {
+		log.Errorf("永久删除文件时出错：%v", err)
+		c.JSON(200, payload.FailPayload("永久删除文件时出错"))
+		return
+	}
+
+	go file_service.PermanentlyDelete(lists)
+	c.JSON(200, payload.SucPayload("永久删除文件成功"))
+}
+
 func GetRecoveryFileList(c *gin.Context) {
 	Phone, _ := c.Get("Phone")
 	phone := Phone.(string)
